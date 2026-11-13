@@ -5,8 +5,9 @@ what the Port cost.
 
 All created via code. Use or repurpose the content to fit your next Dev Day.
 
-**Play any lab in your browser:** see the
-[landing page](https://temporalio.github.io/temporal-devdays-go/).
+**Play any lab in your browser:** the Lab links below. `site/` holds a landing
+page for them, one page and social card per lab, ready to host (not deployed:
+GitHub Pages is off for this org).
 
 ## Workshops
 
@@ -40,7 +41,7 @@ Every Workshop here is a Port of its TypeScript version in
 - `decks/`: Slidev Decks. `go-master` is Temporal Essentials and the pool of
   segments the other Decks import.
 - `docs/ports/`: what each Port cost.
-- `site/`: the landing page.
+- `site/`: the landing page (built, not hosted).
 
 ## Proving a Workshop
 
