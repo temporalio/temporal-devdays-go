@@ -1,0 +1,19 @@
+{
+  "name": "saga-order-fulfillment-go-slides",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Slides for the Patterns and anti-patterns (Saga order fulfillment, Go) workshop",
+  "scripts": {
+    "dev": "slidev --open",
+    "build": "slidev build",
+    "export": "slidev export",
+    "probe": "node scripts/probe-fit.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@slidev/cli": "^52.19.0",
+    "playwright-chromium": "^1.62.1",
+    "prettier": "^3.9.6",
+    "prettier-plugin-slidev": "^1.0.5"
+  }
+}
