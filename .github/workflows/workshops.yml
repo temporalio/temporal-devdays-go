@@ -1,0 +1,63 @@
+name: Gated Workshops
+
+on:
+  pull_request:
+    paths: ["workshops/**", "scripts/**", ".github/workflows/workshops.yml"]
+  push:
+    branches: [main]
+    paths: ["workshops/**", "scripts/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    name: Find gated Workshops
+    runs-on: ubuntu-latest
+    outputs:
+      workshops: ${{ steps.find.outputs.workshops }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - id: find
+        run: |
+          W=$(ls -d workshops/*/sandbox/challenges.tsv 2>/dev/null | cut -d/ -f2 | jq -R . | jq -cs .)
+          echo "workshops=${W:-[]}" >> "$GITHUB_OUTPUT"
+
+  snippets:
+    name: Assignment snippets match the code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: node scripts/check-snippets.mjs
+
+  workshop:
+    name: ${{ matrix.workshop }} (Solution tests, every Check gates its Challenge)
+    needs: list
+    if: needs.list.outputs.workshops != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workshop: ${{ fromJSON(needs.list.outputs.workshops) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: workshops/${{ matrix.workshop }}/solution/go.mod
+          cache-dependency-path: workshops/${{ matrix.workshop }}/*/go.sum
+      # The same CLI the Sandbox Image bakes in; the tests start their dev server from it.
+      - name: Install the Temporal CLI
+        run: |
+          curl -fsSL https://github.com/temporalio/cli/releases/download/v1.10.0/temporal_cli_1.10.0_linux_amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin temporal
+          temporal --version
+      - name: Solution tests pass
+        working-directory: workshops/${{ matrix.workshop }}/solution
+        run: go vet ./... && go test -count=1 ./...
+      - name: Exercise compiles as shipped
+        working-directory: workshops/${{ matrix.workshop }}/exercise
+        run: go vet ./...
+      - run: bash scripts/test-checks.sh workshops/${{ matrix.workshop }}

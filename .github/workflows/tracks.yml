@@ -1,0 +1,30 @@
+name: Push Tracks
+
+# Pushes every Track to Instruqt. Manual, because a push changes what learners
+# get. Needs the INSTRUQT_TOKEN secret: an org API key from Instruqt Team
+# Settings -> API keys.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    env:
+      INSTRUQT_TOKEN: ${{ secrets.INSTRUQT_TOKEN }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Require the token
+        run: '[ -n "$INSTRUQT_TOKEN" ] || { echo "Set the INSTRUQT_TOKEN repo secret."; exit 1; }'
+      - name: Install the Instruqt CLI
+        run: |
+          curl -fsSL https://github.com/instruqt/cli/releases/latest/download/instruqt-linux.zip -o instruqt.zip
+          unzip -q instruqt.zip && sudo mv instruqt /usr/local/bin/ && instruqt version
+      - name: Validate and push
+        run: |
+          for t in workshops/*/instruqt; do
+            echo "==> $t"
+            (cd "$t" && instruqt track validate && instruqt track push --force)
+          done

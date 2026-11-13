@@ -1,0 +1,6 @@
+.DS_Store
+*.bak
+node_modules/
+dist/
+# Other sessions' git worktrees live here; never commit them.
+.claude/worktrees/

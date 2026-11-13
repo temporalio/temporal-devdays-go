@@ -1,0 +1,73 @@
+#!/bin/bash
+# ABOUTME: Gated Check for one Challenge (ADR 0003). Fails incomplete work with a
+# message that names the file and the TODO.
+#
+#   workshop-check <exercise-dir> <challenge-number>
+#
+# Baked into the Sandbox Image at /usr/local/bin. A coding Challenge's
+# check-workshop is one line: `exec workshop-check /root/workshop/<slug>/exercise 2`.
+#
+# In order, stopping at the first failure:
+#   1. the Exercise compiles and vets, tests included, so a completed step never
+#      leaves the tree broken;
+#   2. the tests named TestChallenge<N>_... for Challenges 1..N pass;
+#   3. the first failing test's message is what the learner sees. Tests write
+#      that message with t.Fatal / t.Error, for learners, naming file and TODO.
+set -uo pipefail
+
+DIR="${1:?usage: workshop-check <exercise-dir> <challenge-number>}"
+N="${2:?usage: workshop-check <exercise-dir> <challenge-number>}"
+LOG="$(mktemp "${TMPDIR:-/tmp}/workshop-check.XXXXXX")"
+trap 'rm -f "$LOG"' EXIT
+
+fail() {
+    if command -v fail-message >/dev/null 2>&1; then
+        fail-message "$1"
+    else
+        echo "FAIL: $1" >&2
+    fi
+    exit 1
+}
+
+cd "$DIR" || fail "The Exercise folder $DIR is missing."
+
+# 1. Compile and vet. Show the first error only, as "file.go line N: message".
+if ! go vet ./... >"$LOG" 2>&1; then
+    ERR="$(grep -m1 -E '\.go:[0-9]+(:[0-9]+)?: ' "$LOG" \
+        | sed -E 's#^(vet: )?(.*/)?([^/]+\.go):([0-9]+)(:[0-9]+)?: #\3 line \4: #')"
+    fail "Go can't compile your code yet. ${ERR:-$(grep -v '^#' "$LOG" | head -1)}"
+fi
+
+# 2. Tests for this Challenge and every earlier one, selected by name.
+RUN="^TestChallenge($(seq 1 "$N" | paste -sd'|' -))_"
+TIMEOUT=(); command -v timeout >/dev/null 2>&1 && TIMEOUT=(timeout 180)
+${TIMEOUT[@]+"${TIMEOUT[@]}"} go test -count=1 -timeout 170s -json -run "$RUN" ./... >"$LOG" 2>&1
+STATUS=$?
+
+if [ "$STATUS" -eq 124 ]; then
+    fail "The tests timed out. A Workflow may be waiting on something that never happens. Check the last change you made."
+fi
+
+# 3. Read go test's JSON stream: count the tests, and take the first failing
+#    test's own message (the text after "<file>_test.go:<line>: ").
+RESULT="$(jq -Rrs '
+  split("\n") | map(select(length > 0) | (try fromjson catch empty)) as $ev
+  | ($ev | map(select(.Action == "run" and .Test != null)) | length) as $n
+  | ($ev | map(select(.Action == "fail" and .Test != null)) | first) as $f
+  | (if $f == null then "" else
+      ($ev | map(select(.Action == "output" and .Test == $f.Test and .Package == $f.Package) | .Output)
+           | map(select(test("_test\\.go:[0-9]+: "))) | first // ""
+           | sub("^\\s*\\S+_test\\.go:[0-9]+: "; "") | rtrimstr("\n"))
+    end) as $m
+  | "\($n)\n\($m)"' "$LOG")"
+TOTAL="$(echo "$RESULT" | head -1)"
+MSG="$(echo "$RESULT" | sed -n 2p)"
+
+if [ "$STATUS" -eq 0 ] && [ "${TOTAL:-0}" -gt 0 ]; then
+    echo "PASS: Challenge $N"
+    exit 0
+fi
+if [ "${TOTAL:-0}" -eq 0 ] && [ "$STATUS" -eq 0 ]; then
+    fail "No tests are tagged for Challenge $N. This is a Track bug, not your code: tell the instructor."
+fi
+fail "${MSG:-The tests failed. Run 'go test ./...' in the Worker tab to see why.}"

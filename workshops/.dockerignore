@@ -1,0 +1,5 @@
+# For builds whose context is workshops/ (_sandbox/Dockerfile).
+**/*.bak
+**/.DS_Store
+**/*.log
+**/instruqt/
