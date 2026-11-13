@@ -1,0 +1,27 @@
+#!/bin/bash
+# ABOUTME: Skip for this Challenge. Runs `go run ./starter pack` from exercise/,
+# with TODO 1 still undone, so the Check (and the Track test) sees five
+# Terminated children, starting a Worker first if none is running. Never edits
+# code.
+source /root/.bashrc 2>/dev/null || true
+set -euxo pipefail
+cd /root/workshop/child-workflows/exercise
+
+# `go run ./worker` forks a binary named `worker`: find and stop it by that name.
+STARTED=0
+if ! pgrep -x worker >/dev/null; then
+    nohup go run ./worker > /tmp/solve-child-worker.log 2>&1 &
+    STARTED=1
+    for i in $(seq 1 120); do
+        grep -q "polling" /tmp/solve-child-worker.log 2>/dev/null && break
+        sleep 1
+    done
+fi
+
+timeout 180 go run ./starter pack
+
+if [ "$STARTED" -eq 1 ]; then
+    pkill -x worker || true
+    # Wait for it to exit, so the next Skip does not mistake it for a live Worker.
+    for i in $(seq 1 60); do pgrep -x worker >/dev/null || break; sleep 0.5; done
+fi

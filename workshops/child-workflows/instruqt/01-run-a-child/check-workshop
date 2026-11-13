@@ -1,0 +1,22 @@
+#!/bin/bash
+# ABOUTME: Observe-only Check (ADR 0003). Passes once 1 Completed ShipmentWorkflow
+# exists in the local dev server, which means the learner ran the Worker and
+# `go run ./starter child`.
+set -uo pipefail
+fail() {
+    if command -v fail-message >/dev/null 2>&1; then fail-message "$1"; else echo "FAIL: $1" >&2; fi
+    exit 1
+}
+
+N=$(temporal workflow count --address 127.0.0.1:7233 \
+    --query 'WorkflowType="ShipmentWorkflow" AND ExecutionStatus="Completed"' 2>/dev/null \
+    | grep -oE '[0-9]+' | head -1)
+
+if [ "${N:-0}" -lt 1 ]; then
+    # `go run ./worker` runs a binary named `worker`.
+    if ! pgrep -x worker >/dev/null; then
+        fail "No shipment child has completed yet, and no Worker is running. In the Worker tab, run 'go run ./worker'. Then in the Client tab, run 'go run ./starter child'."
+    fi
+    fail "No shipment child has completed yet. In the Client tab, run: go run ./starter child"
+fi
+echo "PASS: a parent ran a child to completion"

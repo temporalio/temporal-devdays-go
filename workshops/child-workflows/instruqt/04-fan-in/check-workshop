@@ -1,0 +1,27 @@
+#!/bin/bash
+# ABOUTME: Check for Challenge 4 (ADR 0003), gated twice. First the code:
+# workshop-check vets the Exercise and runs the tests for Challenges 1..4,
+# showing the first failing test's message, which names the file and TODO 1.
+# Then the outcome: five PackItemWorkflow children have Completed in the local
+# dev server, which means the learner restarted the Worker on the new code and
+# ran `go run ./starter pack`.
+set -uo pipefail
+fail() {
+    if command -v fail-message >/dev/null 2>&1; then fail-message "$1"; else echo "FAIL: $1" >&2; fi
+    exit 1
+}
+
+workshop-check /root/workshop/child-workflows/exercise 4 || exit 1
+
+N=$(temporal workflow count --address 127.0.0.1:7233 \
+    --query 'WorkflowType="PackItemWorkflow" AND ExecutionStatus="Completed"' 2>/dev/null \
+    | grep -oE '[0-9]+' | head -1)
+
+if [ "${N:-0}" -lt 5 ]; then
+    # `go run ./worker` runs a binary named `worker`.
+    if ! pgrep -x worker >/dev/null; then
+        fail "TODO 1 passes its tests. Now run it: in the Worker tab, run 'go run ./worker'. Then in the Client tab, run 'go run ./starter pack'."
+    fi
+    fail "TODO 1 passes its tests. Now run it: a running Worker keeps the code it started with, so in the Worker tab press Ctrl+C and run 'go run ./worker' again. Then in the Client tab, run 'go run ./starter pack'."
+fi
+echo "PASS: five children ran in parallel and the parent collected every box"
