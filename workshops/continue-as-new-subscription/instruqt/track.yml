@@ -1,0 +1,53 @@
+slug: continue-as-new-go
+title: Continue-As-New (Go)
+teaser: A subscription bills every cycle until the Temporal Service terminates it.
+  Add Continue-As-New and watch it finish. Ten minutes.
+description: |-
+  Every Workflow Execution has an Event History, and that history has a hard
+  ceiling. A subscription that bills every cycle will reach it, and the Temporal
+  Service will terminate it.
+
+  Long before that, the Service suggests a rollover. Continue-As-New is how you
+  take it: close the current run and start a fresh one with the same Workflow
+  ID, a new Run ID, and a new, short history.
+
+  One Challenge, about ten minutes:
+
+  1. Run the subscription and watch the Service terminate it.
+  2. Add Continue-As-New when the Service suggests it, carrying the billing count.
+  3. Run it again and watch it finish across a chain of runs.
+
+  Every Check runs your code and tells you what is missing and where.
+
+  **Level:** Advanced. You should already know what a Workflow, an Activity and
+  a Worker are.
+icon: ""
+tags:
+- continue-as-new
+- temporal
+- event-history
+- go
+owner: temporal
+developers:
+- nikolay.advolodkin@temporal.io
+skipping_enabled: true
+idle_timeout: 3600
+timelimit: 1800
+lab_config:
+  extend_ttl: 900
+  sidebar_enabled: true
+  feedback_recap_enabled: true
+  feedback_tab_enabled: true
+  loadingMessages:
+  - Starting the Temporal dev server...
+  - An Event History tops out at 51,200 Events...
+  - Continue-As-New keeps the Workflow ID and takes a new Run ID...
+  - Lowering the history limits so you can watch them...
+  - Opening the code editor...
+  - Loading the Temporal UI...
+  - Almost ready...
+  override_challenge_layout: true
+  hideStopButton: false
+  default_layout: AssignmentLeft
+  default_layout_sidebar_size: 33
+enhanced_loading: false

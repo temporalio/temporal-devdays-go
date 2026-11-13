@@ -1,0 +1,5 @@
+#!/bin/bash
+# ABOUTME: Gated Check for Challenge 1 (ADR 0003). Vets the Exercise, runs
+# TestChallenge1_... against its own dev server with low history limits, and
+# shows the failing test's message, which names the file and the TODO still to do.
+exec workshop-check /root/workshop/continue-as-new-subscription/exercise 1
