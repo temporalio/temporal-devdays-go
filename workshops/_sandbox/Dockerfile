@@ -28,7 +28,8 @@ RUN curl -fsSL \
     && chmod +x /usr/local/bin/temporal
 
 # --- Go tools the editor needs, installed now so it never prompts --------------
-RUN go install golang.org/x/tools/gopls@v0.24.0 \
+# gopls must match the image's Go: v0.24 needs Go 1.27.
+RUN go install golang.org/x/tools/gopls@v0.23.0 \
     && go install github.com/go-delve/delve/cmd/dlv@v1.27.2
 
 # --- code-server (VS Code in the browser, the Exercise tab) -------------------
@@ -92,6 +93,7 @@ RUN mkdir -p /root/workshop && cd /tmp/workshops && for d in */; do \
 # build under emulation on Apple Silicon; prove the same commit natively first.
 ARG PROVE=1
 RUN set -e; for w in /root/workshop/*/; do \
+      [ -d "$w/solution" ] || continue; \
       echo "==> $w"; \
       (cd "$w/solution" && go mod download && go vet ./... && go test -count=1 -run XXX_NONE ./... >/dev/null \
         && if [ "$PROVE" = "1" ]; then go test -count=1 ./...; fi); \
