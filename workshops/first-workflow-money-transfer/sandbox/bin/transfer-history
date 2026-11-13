@@ -1,0 +1,75 @@
+#!/bin/bash
+# ABOUTME: Reads the lab dev server's Event Histories for the observe-only half of a Check.
+#
+#   transfer-history waited     a completed transfer was started before any Worker ran
+#   transfer-history retried    a completed transfer's Deposit failed and was retried,
+#                               while its Withdraw ran once
+#
+# Prints PASS and exits 0, or prints the learner-facing reason and exits 1. Baked
+# into the Sandbox Image at /usr/local/bin; reads histories with the Temporal CLI
+# and jq.
+set -uo pipefail
+
+ADDRESS="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
+# A Workflow Task picked up this long after the start means no Worker was polling.
+WAITED_SECONDS=3
+
+fail() {
+    echo "$1" >&2
+    exit 1
+}
+
+MODE="${1:-}"
+case "$MODE" in
+    waited | retried) ;;
+    *) fail "usage: transfer-history waited|retried" ;;
+esac
+
+# Does one Event History (temporal workflow show -o json) show what MODE asks for?
+# Event times are RFC 3339 with fractional seconds, which fromdateiso8601 rejects,
+# so secs splits the fraction off first.
+# shellcheck disable=SC2016
+MATCH='
+def secs: (sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601)
+          + ((capture("\\.(?<f>[0-9]+)Z$").f // "0") | ("0." + .) | tonumber);
+.events as $e
+| if $mode == "waited" then
+    ([$e[] | select(.eventType == "EVENT_TYPE_WORKFLOW_TASK_STARTED")] | first) as $task
+    | $task != null and (($task.eventTime | secs) - ($e[0].eventTime | secs)) >= $min
+  else
+    # The attempt each Activity finished on, by Activity type (Withdraw, Deposit).
+    ([$e[] | select(.eventType == "EVENT_TYPE_ACTIVITY_TASK_SCHEDULED")
+      | {key: .eventId, value: .activityTaskScheduledEventAttributes.activityType.name}]
+     | from_entries) as $names
+    | ([$e[] | select(.eventType == "EVENT_TYPE_ACTIVITY_TASK_STARTED")
+        | .activityTaskStartedEventAttributes
+        | {key: $names[.scheduledEventId], value: (.attempt | tonumber)}]
+       | from_entries) as $attempt
+    | $attempt.Withdraw == 1 and ($attempt.Deposit // 0) > 1
+  end'
+
+RUNS="$(temporal workflow list --address "$ADDRESS" --limit 20 -o json \
+    --query 'WorkflowType="MoneyTransferWorkflow" AND ExecutionStatus="Completed"' 2>/dev/null)" \
+    || fail "Can't reach the Temporal dev server. Wait a few seconds and click Check again."
+
+COMPLETED=0
+while read -r WID RID; do
+    [ -n "$WID" ] || continue
+    COMPLETED=$((COMPLETED + 1))
+    temporal workflow show --address "$ADDRESS" -w "$WID" -r "$RID" -o json 2>/dev/null \
+        | jq -e --arg mode "$MODE" --argjson min "$WAITED_SECONDS" "$MATCH" >/dev/null || continue
+    if [ "$MODE" = "waited" ]; then
+        echo "PASS: a transfer waited for a Worker, then completed"
+    else
+        echo "PASS: the deposit was retried until the fix, and the withdraw ran once"
+    fi
+    exit 0
+done < <(echo "$RUNS" | jq -r '(. // [])[] | "\(.execution.workflowId) \(.execution.runId)"')
+
+if [ "$MODE" = "waited" ]; then
+    [ "$COMPLETED" -gt 0 ] && fail "Your transfer completed, but a Worker was already running, so it never waited. \
+Stop the Worker with Ctrl+C, run the starter, wait a few seconds, then start the Worker."
+    fail "No completed transfer yet. Run the starter in the Client tab, then start the Worker in the Worker tab."
+fi
+fail "No large transfer has completed after its deposit failed. In the Client tab, start a \
+\$2,500 transfer with the bug still in place, then crash, fix and restart the Worker."

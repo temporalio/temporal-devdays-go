@@ -1,0 +1,12 @@
+#!/bin/bash
+# ABOUTME: Check for Challenge 2 (ADR 0003). First the gated code check (TODO 1
+# fixed), then the Event History: a large transfer's Deposit failed, was
+# retried, and completed, while its Withdraw ran once.
+set -uo pipefail
+fail() {
+    if command -v fail-message >/dev/null 2>&1; then fail-message "$1"; else echo "FAIL: $1" >&2; fi
+    exit 1
+}
+workshop-check /root/workshop/first-workflow-money-transfer/exercise 2 || exit 1
+OUT="$(transfer-history retried 2>&1)" || fail "$OUT"
+echo "$OUT"

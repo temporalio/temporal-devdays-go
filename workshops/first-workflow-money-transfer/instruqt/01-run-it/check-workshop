@@ -1,0 +1,10 @@
+#!/bin/bash
+# ABOUTME: Observe-only Check for Challenge 1 (ADR 0003). Passes once a transfer
+# completed after waiting for a Worker, read from the dev server's Event History.
+set -uo pipefail
+fail() {
+    if command -v fail-message >/dev/null 2>&1; then fail-message "$1"; else echo "FAIL: $1" >&2; fi
+    exit 1
+}
+OUT="$(transfer-history waited 2>&1)" || fail "$OUT"
+echo "$OUT"

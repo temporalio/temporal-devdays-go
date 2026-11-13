@@ -1,0 +1,42 @@
+#!/bin/bash
+# ABOUTME: Skip for Challenge 2. Plays the Challenge: a large transfer runs
+# against a stand-in Worker whose Deposit always fails, the stand-in crashes,
+# TODO 1 is spliced in from solution/, and the real Worker finishes the transfer.
+# The stand-in makes this work even if the learner already fixed the bug.
+set -euxo pipefail
+W=/root/workshop/first-workflow-money-transfer
+F=activities.go
+
+stop_worker() {
+    # `go run ./worker` runs a child binary named worker. Signal that, not go run,
+    # or the Worker outlives its parent. It has no signal handler, so SIGTERM is a
+    # crash, the same as Ctrl+C in the Worker tab.
+    pkill -x worker || true
+    # Wait for it to exit, so the next Skip does not mistake it for a live Worker.
+    for i in $(seq 1 30); do pgrep -x worker >/dev/null || return 0; sleep 0.5; done
+    pkill -KILL -x worker || true
+}
+stop_worker
+
+# The stand-in: a copy of the Solution whose Deposit panics for a large deposit,
+# first thing inside TODO 1. Copied from solution/, not exercise/, so it compiles
+# whatever state the learner's code is in. Same module path, same module cache.
+rm -rf /tmp/standin && mkdir /tmp/standin
+(cd "$W/solution" && tar --exclude '*.bak' -cf - .) | (cd /tmp/standin && tar -xf -)
+awk '{ print } /\/\/ TODO 1 start/ { print "\tif details.Amount >= LargeDeposit {"; print "\t\tpanic(\"stand-in deposit bug\")"; print "\t}" }' \
+    "$W/solution/$F" > "/tmp/standin/$F"
+cd /tmp/standin
+nohup go run ./worker > /tmp/solve-2-standin.log 2>&1 &
+
+cd "$W/exercise"
+timeout 180 go run ./starter -amount 2500 > /tmp/solve-2-starter.log 2>&1 &
+STARTER=$!
+# Crash the stand-in once the deposit has failed at least twice.
+for i in $(seq 1 180); do grep -q "deposit attempt 3" /tmp/solve-2-standin.log && break; sleep 0.5; done
+grep -q "deposit attempt 3" /tmp/solve-2-standin.log || { tail -20 /tmp/solve-2-standin.log; exit 1; }
+stop_worker
+
+workshop-solve "$W/exercise" "$W/solution" "$F" "TODO 1"
+nohup go run ./worker > /tmp/solve-2-worker.log 2>&1 &
+wait "$STARTER"
+stop_worker

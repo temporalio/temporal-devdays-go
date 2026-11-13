@@ -1,0 +1,25 @@
+#!/bin/bash
+# ABOUTME: Skip for Challenge 1. Starts a transfer with no Worker running, waits,
+# then starts a Worker so the transfer completes. Never edits code.
+set -euxo pipefail
+cd /root/workshop/first-workflow-money-transfer/exercise
+
+stop_worker() {
+    # `go run ./worker` runs a child binary named worker. Signal that, not go run,
+    # or the Worker outlives its parent. It has no signal handler, so SIGTERM is a
+    # crash, the same as Ctrl+C in the Worker tab.
+    pkill -x worker || true
+    # Wait for it to exit, so the next Skip does not mistake it for a live Worker.
+    for i in $(seq 1 30); do pgrep -x worker >/dev/null || return 0; sleep 0.5; done
+    pkill -KILL -x worker || true
+}
+
+stop_worker
+timeout 180 go run ./starter > /tmp/solve-1-starter.log 2>&1 &
+STARTER=$!
+# The transfer exists once the starter prints this line. Then leave it waiting.
+for i in $(seq 1 120); do grep -q "Waiting for the result" /tmp/solve-1-starter.log && break; sleep 0.5; done
+sleep 5
+nohup go run ./worker > /tmp/solve-1-worker.log 2>&1 &
+wait "$STARTER"
+stop_worker
