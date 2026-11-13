@@ -1,0 +1,54 @@
+slug: heartbeats-go
+title: Activity Heartbeats (Go)
+teaser: Crash a Worker mid-job and watch the retry wait, then start over. Add Heartbeats
+  and watch it pick up in seconds, where it left off. Ten minutes.
+description: |-
+  An Activity is ordinary code running on a Worker. Temporal cannot see inside
+  it, so from the outside a busy Activity and a dead Worker look the same.
+
+  A Heartbeat is the Activity saying "still here, and this is how far I got."
+  With a Heartbeat Timeout, Temporal notices a lost attempt in seconds, and the
+  retry can carry on from the last reported progress.
+
+  One Challenge, about ten minutes:
+
+  1. Kill a Worker 10 items into a 40 item job. Watch the retry wait out the
+     whole timeout, then start again at item 0.
+  2. Add a Heartbeat Timeout, a Heartbeat per item, and a resume point.
+  3. Kill it again. Watch the retry start in seconds, where it left off.
+
+  Every Check runs your code and tells you what is missing and where.
+
+  **Prerequisite:** Temporal Essentials. You should already know what a Workflow,
+  an Activity, a Worker and a Retry Policy are.
+icon: ""
+tags:
+- heartbeats
+- timeouts
+- activities
+- temporal
+- go
+owner: temporal
+developers:
+- nikolay.advolodkin@temporal.io
+skipping_enabled: true
+idle_timeout: 3600
+timelimit: 1800
+lab_config:
+  extend_ttl: 900
+  sidebar_enabled: true
+  feedback_recap_enabled: true
+  feedback_tab_enabled: true
+  loadingMessages:
+  - Starting the Temporal dev server...
+  - Stacking 40 items to pack...
+  - When Heartbeats stop, Temporal hands the Activity to another Worker...
+  - Cancellation reaches an Activity through its Heartbeat...
+  - Opening the code editor...
+  - Loading the Temporal Web UI...
+  - Almost ready...
+  override_challenge_layout: true
+  hideStopButton: false
+  default_layout: AssignmentLeft
+  default_layout_sidebar_size: 33
+enhanced_loading: false
