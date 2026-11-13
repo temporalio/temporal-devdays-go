@@ -1,0 +1,5 @@
+#!/bin/bash
+# ABOUTME: Check for Challenge 1 (ADR 0003). Vets the Exercise, then runs the tests
+# for Challenges 1 to 1 against their own dev server. Fails until TODO 1 in
+# workflow.go is done, with a message that names the file, the function and the TODO.
+exec workshop-check /root/workshop/saga-order-fulfillment/exercise 1

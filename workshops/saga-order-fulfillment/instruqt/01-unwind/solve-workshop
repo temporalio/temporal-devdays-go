@@ -1,0 +1,8 @@
+#!/bin/bash
+# ABOUTME: Skip for Challenge 1. Splices only TODO 1 in from solution/ into the
+# learner's workflow.go (the original is kept as workflow.go.bak), so their work on every
+# other TODO stays. A Worker already running keeps the old code until it is
+# restarted; the next Challenge's setup stops it.
+set -euxo pipefail
+W=/root/workshop/saga-order-fulfillment
+workshop-solve "$W/exercise" "$W/solution" workflow.go "TODO 1"

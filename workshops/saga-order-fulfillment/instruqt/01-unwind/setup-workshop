@@ -1,0 +1,14 @@
+#!/bin/bash
+# ABOUTME: Setup for Challenge 1. Stops any Worker left from an earlier Challenge,
+# so the Task Queue is served only by the Worker the learner starts now, on the
+# code as it is now.
+#
+# `go run ./worker` builds a child binary named `worker` and runs it. Stopping
+# `go run` alone leaves that child polling, so stop the child by name too. One
+# pkill per pattern: `pkill -f "a|b"` silently matches nothing on macOS.
+set -uo pipefail
+
+pkill -f "go run ./worker" 2>/dev/null || true
+pkill -x worker 2>/dev/null || true
+
+echo "Saga Challenge 1 ready."

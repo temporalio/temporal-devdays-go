@@ -1,0 +1,5 @@
+#!/bin/bash
+# ABOUTME: Check for Challenge 3 (ADR 0003). Vets the Exercise, then runs the tests
+# for Challenges 1 to 3 against their own dev server. Fails until TODO 3a and TODO 3b in
+# activities.go is done, with a message that names the file, the function and the TODO.
+exec workshop-check /root/workshop/saga-order-fulfillment/exercise 3

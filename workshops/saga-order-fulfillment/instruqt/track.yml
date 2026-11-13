@@ -1,0 +1,42 @@
+slug: saga-go
+title: The Saga Pattern (Go)
+teaser: An order reserves stock and charges a card, then fails. Watch nobody clean
+  up, then fix it.
+description: |-
+  A distributed transaction has no rollback. When step three fails, steps one and
+  two have already happened, so stock is held and a card is charged, and
+  something has to undo them.
+
+  This is the Saga pattern. Every forward step is paired with a compensating
+  action, and the compensations run in reverse when anything fails. There is no
+  built-in helper: you write the compensation stack yourself, as a slice of funcs
+  and a defer that walks it backwards.
+
+  Three short Challenges:
+
+  1. Unwind: run the undos, newest first, even when the order is cancelled.
+  2. Register before you run: catch the step that lands its effect and still fails.
+  3. Make the undo safe to repeat: it can run when nothing happened, and more than once.
+
+  Every Check tells you what is missing and where. The code is about twenty lines
+  of ordinary Go. The lab is about where those lines go, and why.
+icon: ""
+tags:
+- compensation
+- temporal
+- saga
+- patterns
+- go
+owner: temporal
+developers:
+- nikolay.advolodkin@temporal.io
+skipping_enabled: true
+idle_timeout: 1800
+timelimit: 3600
+lab_config:
+  extend_ttl: 900
+  sidebar_enabled: true
+  feedback_recap_enabled: true
+  feedback_tab_enabled: true
+  loadingMessages: true
+  hideStopButton: false
