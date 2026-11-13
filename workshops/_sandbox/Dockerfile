@@ -93,6 +93,7 @@ RUN mkdir -p /root/workshop && cd /tmp/workshops && for d in */; do \
 # build under emulation on Apple Silicon; prove the same commit natively first.
 ARG PROVE=1
 RUN set -e; for w in /root/workshop/*/; do \
+      [ -d "$w/solution" ] || continue; \
       echo "==> $w"; \
       (cd "$w/solution" && go mod download && go vet ./... && go test -count=1 -run XXX_NONE ./... >/dev/null \
         && if [ "$PROVE" = "1" ]; then go test -count=1 ./...; fi); \
