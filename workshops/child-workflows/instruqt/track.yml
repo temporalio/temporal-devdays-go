@@ -1,0 +1,49 @@
+slug: child-workflows-go
+title: Child Workflows (Go)
+teaser: Start a child, chain children five deep, fan out, then write the fan in.
+description: |-
+  A Child Workflow is a Workflow started by another Workflow. It gets its own
+  Workflow ID, its own Event History and its own lifecycle, and the parent can
+  wait for its result.
+
+  Four short Challenges:
+
+  1. Run one child and read both histories.
+  2. Chain children five deep, fail the bottom one, and follow the error up.
+  3. Fan out: start one child per item and close the parent without waiting. Watch the children get terminated.
+  4. Fan in: call `Get` on every child's Future and collect the results.
+
+  Challenges 1 to 3 are run and observe. Challenge 4 is one TODO. Every Check
+  tells you what is missing and where.
+
+  **Prerequisite:** Temporal Essentials. You should already know what a Workflow
+  and a Worker are.
+icon: ""
+tags:
+- child-workflows
+- temporal
+- patterns
+- go
+owner: temporal
+developers:
+- nikolay.advolodkin@temporal.io
+skipping_enabled: true
+idle_timeout: 3600
+timelimit: 1800
+lab_config:
+  extend_ttl: 900
+  sidebar_enabled: true
+  feedback_recap_enabled: true
+  feedback_tab_enabled: true
+  loadingMessages:
+  - Starting the Temporal dev server...
+  - Teaching a Workflow to start other Workflows...
+  - Nesting children five levels deep...
+  - Packing five boxes at once...
+  - Opening the code editor...
+  - Loading the Temporal UI...
+  - Almost ready...
+  override_challenge_layout: true
+  hideStopButton: false
+  default_layout: AssignmentLeft
+  default_layout_sidebar_size: 33

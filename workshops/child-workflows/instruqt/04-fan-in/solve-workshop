@@ -1,0 +1,38 @@
+#!/bin/bash
+# ABOUTME: Skip for Challenge 4. Splices only "TODO 1" from solution/ into the
+# learner's exercise (the original is saved as .bak), then runs
+# `go run ./starter pack` on a fresh Worker so the Check sees five Completed
+# children.
+source /root/.bashrc 2>/dev/null || true
+set -euxo pipefail
+W=/root/workshop/child-workflows
+workshop-solve "$W/exercise" "$W/solution" workflows/pack.go "TODO 1"
+cd "$W/exercise"
+
+completed() {
+    temporal workflow count --address 127.0.0.1:7233 \
+        --query 'WorkflowType="PackItemWorkflow" AND ExecutionStatus="Completed"' 2>/dev/null \
+        | grep -oE '[0-9]+' | head -1
+}
+
+# A running Worker keeps the code it was built from, so one started before the
+# splice would still terminate the children. Stop it (`go run ./worker` forks a
+# binary named `worker`) and start one on the new code.
+pkill -x worker || true
+for i in $(seq 1 60); do pgrep -x worker >/dev/null || break; sleep 0.5; done
+
+nohup go run ./worker > /tmp/solve-child-worker.log 2>&1 &
+for i in $(seq 1 120); do
+    grep -q "polling" /tmp/solve-child-worker.log 2>/dev/null && break
+    sleep 1
+done
+
+for attempt in 1 2 3; do
+    timeout 180 go run ./starter pack
+    DONE="$(completed)"
+    [ "${DONE:-0}" -ge 5 ] && break
+    sleep 5
+done
+
+pkill -x worker || true
+for i in $(seq 1 60); do pgrep -x worker >/dev/null || break; sleep 0.5; done

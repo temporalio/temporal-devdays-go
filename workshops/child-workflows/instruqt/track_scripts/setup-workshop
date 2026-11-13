@@ -1,0 +1,73 @@
+#!/bin/bash
+# ABOUTME: Track-level setup. Runs once when the attendee enters the track.
+# Starts the editor, rooted at this Workshop, and the Temporal dev server. The
+# Sandbox Image holds every Go Workshop under /root/workshop/ (ADR 0004).
+#
+# Ordering matters. The editor starts BEFORE any Temporal work and is never gated
+# on it: a setup that exits on a slow Temporal health check takes the Exercise
+# tab down with it, and the attendee sees "Please wait" forever.
+set -uo pipefail
+
+WORKSHOP=/root/workshop/child-workflows
+
+# 1. Wait for Instruqt host bootstrap.
+until [ -f /opt/instruqt/bootstrap/host-bootstrap-completed ]; do
+    sleep 1
+done
+
+# 2. One code-server, rooted at this Workshop, on 8080. Not 8443: Instruqt's
+#    proxy cannot reach it there. 8080 is listed under ports: in config.yml.
+if ! curl -sf -o /dev/null "http://127.0.0.1:8080/" 2>/dev/null; then
+    nohup code-server \
+        --bind-addr "0.0.0.0:8080" \
+        --auth none \
+        --disable-telemetry \
+        --disable-update-check \
+        --user-data-dir /root/.cs-workshop \
+        "${WORKSHOP}" > /tmp/code-server-8080.log 2>&1 &
+    disown || true
+fi
+
+# 3. The Temporal dev server. --ip 0.0.0.0 so the service tab reaches the UI.
+if ! curl -sf http://127.0.0.1:8233 >/dev/null 2>&1; then
+    nohup temporal server start-dev \
+        --ip 0.0.0.0 \
+        --port 7233 \
+        --ui-port 8233 \
+        --db-filename /root/temporal.db \
+        --log-level warn \
+        > /tmp/temporal-server.log 2>&1 &
+    disown || true
+fi
+
+# 4. Wait for Temporal. Log loudly on failure, but do NOT exit: the editor is
+#    already up and killing the script here helps nobody.
+TEMPORAL_UP=0
+for i in $(seq 1 120); do
+    if temporal operator cluster health --address 127.0.0.1:7233 >/dev/null 2>&1; then
+        TEMPORAL_UP=1
+        break
+    fi
+    sleep 1
+done
+if [ "$TEMPORAL_UP" -ne 1 ]; then
+    echo "==> WARNING: Temporal dev server did not become healthy in 120s."
+    tail -30 /tmp/temporal-server.log 2>/dev/null
+fi
+
+# 5. Wait for the editor workbench, not just the listener. Never fatal.
+#    Only the tab's exact URL returning 200 plus a started extension host means
+#    the learner sees a working editor.
+code_server_ready() {
+    [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+        "http://127.0.0.1:8080/?folder=${WORKSHOP}" 2>/dev/null)" = "200" ] \
+        && grep -q "Extension host agent started" /tmp/code-server-8080.log 2>/dev/null
+}
+for i in $(seq 1 90); do
+    code_server_ready && break
+    sleep 1
+done
+code_server_ready \
+    || { echo "==> WARNING: code-server 8080 not ready."; tail -20 /tmp/code-server-8080.log 2>/dev/null; }
+
+echo "==> Track setup complete. Workshop at ${WORKSHOP}"
