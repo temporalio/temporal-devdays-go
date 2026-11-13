@@ -18,7 +18,7 @@ trap 'rm -rf "$SCRATCH"' EXIT
 mkdir -p "$SCRATCH/exercise" "$SCRATCH/bin"
 (cd "$ROOT/workshops/_sandbox/workshop-solve" && go build -o "$SCRATCH/bin/workshop-solve" .) || exit 1
 cp "$ROOT/workshops/_sandbox/bin/workshop-check" "$SCRATCH/bin/"
-[ -d "$WS/sandbox/bin" ] && cp "$WS/sandbox/bin/"* "$SCRATCH/bin/"
+[ -n "$(ls -A "$WS/sandbox/bin" 2>/dev/null)" ] && cp "$WS/sandbox/bin/"* "$SCRATCH/bin/"
 export PATH="$SCRATCH/bin:$PATH"
 (cd "$WS/exercise" && tar --exclude '*.bak' -cf - .) | (cd "$SCRATCH/exercise" && tar -xf -)
 FAILS=0
