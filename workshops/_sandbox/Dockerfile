@@ -18,6 +18,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ARG TARGETARCH
 
+# A login shell (bash -l, as Instruqt and scripts/test-track-local.sh run
+# scripts) resets PATH from /etc/profile and loses the image's Go. Put the
+# toolchain where every shell looks.
+RUN ln -s /usr/local/go/bin/go /usr/local/bin/go \
+    && ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt \
+    && echo 'export PATH="/usr/local/go/bin:/go/bin:$PATH"' > /etc/profile.d/go.sh
+
 # --- Temporal CLI -------------------------------------------------------------
 # Also what the Checks' tests start their own dev server from, so a Check never
 # downloads a server binary.
