@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saga Order Fulfillment</title>
+<!--
+  FLOW DIAGRAM genre, built from the DevDays diagram template.
+
+  One order whose courier fails, run twice: without compensations and with
+  them. Every fn and file below appears verbatim in
+  workshops/saga-order-fulfillment/solution/.
+
+  ?panes=without (or with, or both, comma separated) limits the page to those
+  panes, and hides the tabs when only one is left.
+
+  Additions to the template machinery:
+    - a data strip under the canvas: the Order input, the Workflow's
+      `compensations` list, and the ledger of what downstream systems did,
+      set per step
+    - same-row edges that run right to left (the unwind walks backwards)
+    - ?embed=1: transparent background, no page heading or Back/Next row, and
+      postMessage control so a Slidev slide can drive the stepper with clicks.
+      Messages in:  { type: "saga-flow:goto", index }   (tour index, see TOUR)
+      Messages out: { type: "saga-flow:key", key }       (arrow keys, so the
+      deck keeps navigating when the iframe has focus)
+-->
+<style>
+/* ---------- tokens: light is the base ---------- */
+:root {
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-2: #F6F7F9;
+  --ink: #16181D;
+  --ink-2: #5A6472;
+  --line: #D8DCE3;
+  --ring: #16181D;
+
+  --wf: #5B3FA8;        /* Workflow */
+  --wf-bg: #F3EEFC;
+  --act: #0E7C7B;       /* Activity */
+  --act-bg: #E6F5F4;
+  --svc: #B4690E;       /* External service */
+  --svc-bg: #FCF2E2;
+  --dec: #B23A6F;       /* Decision / failure */
+  --dec-bg: #FCEDF3;
+
+  --f1: #2563EB;        /* file dots: at most three hues */
+  --f2: #15803D;
+  --f3: #C2410C;
+}
+/* dark, by preference, unless the reader forced light */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1014;
+    --surface: #171A20;
+    --surface-2: #1E222A;
+    --ink: #EDEFF3;
+    --ink-2: #99A2B0;
+    --line: #2C313B;
+    --ring: #EDEFF3;
+
+    --wf: #C2A6FA;  --wf-bg: #241B38;
+    --act: #5EDCD6; --act-bg: #10312F;
+    --svc: #F0B357; --svc-bg: #35260F;
+    --dec: #F19AC0; --dec-bg: #351A27;
+    --f1: #7EA8FF;  --f2: #6BD08C;  --f3: #FF9B63;
+  }
+}
+/* dark, forced */
+:root[data-theme="dark"] {
+  --bg: #0E1014;
+  --surface: #171A20;
+  --surface-2: #1E222A;
+  --ink: #EDEFF3;
+  --ink-2: #99A2B0;
+  --line: #2C313B;
+  --ring: #EDEFF3;
+
+  --wf: #C2A6FA;  --wf-bg: #241B38;
+  --act: #5EDCD6; --act-bg: #10312F;
+  --svc: #F0B357; --svc-bg: #35260F;
+  --dec: #F19AC0; --dec-bg: #351A27;
+  --f1: #7EA8FF;  --f2: #6BD08C;  --f3: #FF9B63;
+}
+/* light, forced */
+:root[data-theme="light"] {
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-2: #F6F7F9;
+  --ink: #16181D;
+  --ink-2: #5A6472;
+  --line: #D8DCE3;
+  --ring: #16181D;
+
+  --wf: #5B3FA8;  --wf-bg: #F3EEFC;
+  --act: #0E7C7B; --act-bg: #E6F5F4;
+  --svc: #B4690E; --svc-bg: #FCF2E2;
+  --dec: #B23A6F; --dec-bg: #FCEDF3;
+  --f1: #2563EB;  --f2: #15803D;  --f3: #C2410C;
+}
+
+/* Declared so an embedding iframe can stay transparent: a document whose
+   color-scheme differs from its iframe's gets an opaque canvas. */
+:root { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+/* At least as wide as the widest pane. See build(). */
+.wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+.eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 4px; }
+h1 { font-size: 22px; margin: 0 0 18px; font-weight: 650; }
+
+/* ---------- embed mode: the slide supplies title and navigation ---------- */
+html.embed body { background: transparent; }
+html.embed .wrap { padding: 4px 8px 8px; max-width: none; }
+html.embed .eyebrow, html.embed h1, html.embed .controls { display: none; }
+html.embed .caption { margin-top: 8px; min-height: 0; padding: 7px 11px; font-size: 13px; }
+html.embed .grid { gap: 22px 52px; }
+html.embed .tabs { margin-bottom: 8px; }
+html.embed .card { min-height: 0; padding: 6px 10px; }
+html.embed .data { margin-top: 8px; grid-template-columns: 1fr 1.3fr; }
+/* The ledger chips carry the order id; the slide has no room for the input card. */
+html.embed .card.order { display: none; }
+
+/* ---------- tabs ---------- */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.tab {
+  font: inherit; font-size: 13px; cursor: pointer;
+  padding: 6px 13px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+}
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+/* ---------- canvas ---------- */
+.scroller { overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
+.canvas { position: relative; }
+.pane { display: none; position: relative; }
+.pane.on { display: block; }
+
+.grid {
+  position: relative; z-index: 2;
+  display: grid; gap: 34px 52px;
+  align-items: start;
+}
+svg.edges {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible;
+}
+svg.edges.paths-layer { z-index: 1; }
+svg.edges.labels-layer { z-index: 3; }
+
+/* ---------- nodes ---------- */
+.node {
+  position: relative;
+  background: var(--surface); border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 9px; padding: 8px 11px;
+  transition: opacity .16s ease, box-shadow .16s ease;
+}
+.node .title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.node .fn {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px; color: var(--ink); margin-top: 2px;
+  /* Break only where build() puts a <wbr>: after _ and . in an identifier. */
+  overflow-wrap: normal; word-break: normal;
+}
+.node .file {
+  display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; color: var(--ink-2); margin-top: 5px;
+}
+.node .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; background: var(--ink-2); }
+
+.node.k-workflow { border-color: var(--wf); background: var(--wf-bg); }
+.node.k-activity { border-color: var(--act); background: var(--act-bg); }
+.node.k-service  { border-color: var(--svc); background: var(--svc-bg); }
+.node.k-decision { border-color: var(--dec); background: var(--dec-bg); }
+.node.k-step { border-color: var(--line); background: var(--surface-2); }
+
+/* ---------- stepper lighting: dim, never hide ---------- */
+.canvas.stepping .node { opacity: .3; }
+.canvas.stepping .node.hot { opacity: 1; }
+.canvas.stepping .edge { opacity: .18; }
+.canvas.stepping .edge.hot { opacity: 1; }
+.node.hot { box-shadow: 0 0 0 2px var(--ring); }
+
+/* ---------- edges: category by dash, not hue ---------- */
+.edge path { fill: none; stroke: var(--ink-2); stroke-width: 1.8; }
+.edge.e-unwind path { stroke-dasharray: 6 4; }
+.edge text {
+  fill: var(--ink-2); font-size: 11px; text-anchor: middle;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3.5px; stroke-linejoin: round;
+}
+html.embed .edge text { stroke: #1a1633; }
+
+/* ---------- controls + caption ---------- */
+.controls { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; flex-wrap: wrap; }
+.controls button {
+  font: inherit; font-size: 13px; cursor: pointer;
+  padding: 6px 12px; border-radius: 7px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.controls button[disabled] { opacity: .4; cursor: default; }
+.counter { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.caption {
+  min-height: 42px; padding: 9px 12px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+  font-size: 13.5px; color: var(--ink);
+}
+.caption code, .data code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
+}
+
+/* ---------- data strip: what the run is carrying, and what it did ---------- */
+.data { display: grid; grid-template-columns: 1.05fr 1fr 1.35fr; gap: 10px; margin-top: 10px; }
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 11px; min-height: 76px;
+}
+.card h3 { margin: 0 0 5px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); font-weight: 700; }
+.card h3 span { text-transform: none; letter-spacing: 0; font-weight: 500; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.kv { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2);
+}
+.chip.fwd { border-color: var(--act); }
+.chip.undo { border-color: var(--act); background: var(--act-bg); }
+.chip.stranded { border-color: var(--dec); background: var(--dec-bg); }
+.chip.stranded::after { content: " stranded"; color: var(--dec); font-weight: 700; }
+.chip.new { box-shadow: 0 0 0 2px var(--ring); }
+.chip.comp { border-color: var(--wf); }
+.empty { font-size: 12px; color: var(--ink-2); font-style: italic; }
+
+/* ---------- legend ---------- */
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--ink-2); }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.legend i { width: 15px; height: 12px; border-radius: 3px; border-left: 3px solid; display: inline-block; }
+html.embed .legend { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Saga pattern</p>
+  <h1>One order, a courier that fails</h1>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <div class="scroller">
+    <div class="canvas" id="canvas"></div>
+  </div>
+
+  <div class="controls">
+    <button id="back" type="button">&larr; Back</button>
+    <button id="next" type="button">Next &rarr;</button>
+    <button id="reset" type="button">Show all</button>
+    <span class="counter" id="counter"></span>
+  </div>
+  <div class="caption" id="caption"></div>
+  <div class="data" id="data"></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   DATA.
+   - Panes are named after what they add, never after a lesson.
+   - fn and file appear verbatim in workshops/saga-order-fulfillment/solution/.
+   - The same node keeps the same id and position in both panes.
+   ============================================================ */
+
+const FILES = {
+  "workflow.go":   "var(--f1)",
+  "activities.go": "var(--f2)",
+};
+
+/* The input, from `go run ./starter --fail-dispatch`. */
+const ORDER = [
+  ["OrderID", '"ORD-7F3A21"'],
+  ["SKU", '"widget"'],
+  ["AmountCents", "4999"],
+  ["FailDispatch", "true"],
+];
+
+const RUN      = { id: "run",      kind: "workflow", title: "Workflow",          fn: "OrderFulfillmentWorkflow",   file: "workflow.go",    col: 1, row: 1 };
+const RESERVE  = { id: "reserve",  kind: "activity", title: "Step 1",            fn: "ReserveInventory",             file: "activities.go", col: 2, row: 1 };
+const CHARGE   = { id: "charge",   kind: "activity", title: "Step 2",            fn: "ChargePayment",                file: "activities.go", col: 3, row: 1 };
+const DISPATCH = { id: "dispatch", kind: "activity", title: "Step 3",            fn: "DispatchCourier",              file: "activities.go", col: 4, row: 1 };
+const FAILED   = { id: "failed",   kind: "decision", title: "Workflow ends",     fn: "Failed: return err",           file: "workflow.go",    col: 1, row: 2 };
+const RELEASE  = { id: "release",  kind: "activity", title: "Compensation",      fn: "ReleaseInventoryIfReserved",   file: "activities.go", col: 2, row: 2 };
+const REFUND   = { id: "refund",   kind: "activity", title: "Compensation",      fn: "RefundPaymentIfCharged",       file: "activities.go", col: 3, row: 2 };
+
+const PANES = [
+  {
+    id: "without",
+    tab: "Without compensations",
+    nodes: [RUN, RESERVE, CHARGE, DISPATCH, FAILED],
+    edges: [
+      { from: "run",      to: "reserve",  label: "calls" },
+      { from: "reserve",  to: "charge",   label: "ok" },
+      { from: "charge",   to: "dispatch", label: "ok" },
+      { from: "dispatch", to: "failed",   label: "returns err", kind: "unwind" },
+    ],
+  },
+  {
+    id: "with",
+    tab: "With compensations",
+    nodes: [RUN, RESERVE, CHARGE, DISPATCH, FAILED, RELEASE, REFUND],
+    edges: [
+      { from: "run",      to: "reserve",  label: "calls" },
+      { from: "reserve",  to: "charge",   label: "ok" },
+      { from: "charge",   to: "dispatch", label: "ok" },
+      { from: "dispatch", to: "refund",   label: "unwind", kind: "unwind" },
+      { from: "refund",   to: "release",  label: "then", kind: "unwind" },
+      { from: "release",  to: "failed",   label: "return err", kind: "unwind" },
+    ],
+  },
+];
+
+/* Steps light one hop at a time, in EXECUTION order.
+   comps: the Workflow's `compensations` list after this step (null: none kept).
+   ledger: what the downstream systems did so far, oldest first.
+   stranded / fresh: ledger entries to mark. */
+const STEPS = {
+  without: [
+    { node: "run", text: "The Worker runs <code>OrderFulfillmentWorkflow</code> for an order whose courier will fail. No compensations are kept.",
+      comps: null, ledger: [] },
+    { node: "reserve", edge: "run>reserve", text: "<code>ReserveInventory</code> holds the widget. The effect lands in the inventory system, outside the Workflow.",
+      comps: null, ledger: ["reserve"], fresh: "reserve" },
+    { node: "charge", edge: "reserve>charge", text: "<code>ChargePayment</code> captures 4999 cents. Money has moved.",
+      comps: null, ledger: ["reserve", "charge"], fresh: "charge" },
+    { node: "dispatch", edge: "charge>dispatch", text: "<code>DispatchCourier</code> fails with <code>CourierUnavailable</code>, non-retryable. A retry cannot find a courier, and it would undo nothing anyway.",
+      comps: null, ledger: ["reserve", "charge"] },
+    { node: "failed", edge: "dispatch>failed", text: "The Workflow ends Failed, and that is all. The stock stays held and the card stays charged, for a parcel that will never move.",
+      comps: null, ledger: ["reserve", "charge"], stranded: ["reserve", "charge"] },
+  ],
+  with: [
+    { node: "run", text: "Same order, same failing courier. The Workflow starts with an empty <code>compensations</code> slice in Workflow state.",
+      comps: [], ledger: [] },
+    { node: "release", text: "<code>append(compensations, ...)</code> registers <code>ReleaseInventoryIfReserved</code> <strong>before</strong> the step it undoes. Nothing runs yet.",
+      comps: ["ReleaseInventoryIfReserved"], ledger: [], freshComp: 0 },
+    { node: "reserve", edge: "run>reserve", text: "<code>ReserveInventory</code> holds the widget. Its undo is already on record.",
+      comps: ["ReleaseInventoryIfReserved"], ledger: ["reserve"], fresh: "reserve" },
+    { node: "refund", text: "<code>RefundPaymentIfCharged</code> is appended on top before the charge, so a charge that lands and then fails is still covered.",
+      comps: ["ReleaseInventoryIfReserved", "RefundPaymentIfCharged"], ledger: ["reserve"], freshComp: 1 },
+    { node: "charge", edge: "reserve>charge", text: "<code>ChargePayment</code> captures 4999 cents.",
+      comps: ["ReleaseInventoryIfReserved", "RefundPaymentIfCharged"], ledger: ["reserve", "charge"], fresh: "charge" },
+    { node: "dispatch", edge: "charge>dispatch", text: "<code>DispatchCourier</code> fails with <code>CourierUnavailable</code>. The Workflow returns the error, and the deferred function sees an <code>ActivityError</code> and starts the unwind.",
+      comps: ["ReleaseInventoryIfReserved", "RefundPaymentIfCharged"], ledger: ["reserve", "charge"] },
+    { node: "refund", edge: "dispatch>refund", text: "The loop walks the slice backwards, so it starts with the newest, on top: <code>RefundPaymentIfCharged</code> finds a charge standing and refunds it.",
+      comps: ["ReleaseInventoryIfReserved", "RefundPaymentIfCharged"], ledger: ["reserve", "charge", "refund"], fresh: "refund" },
+    { node: "release", edge: "refund>release", text: "Then <code>ReleaseInventoryIfReserved</code> finds the reservation standing and releases it. Newest first: refund, then release.",
+      comps: ["ReleaseInventoryIfReserved", "RefundPaymentIfCharged"], ledger: ["reserve", "charge", "refund", "release"], fresh: "release" },
+    { node: "failed", edge: "release>failed", text: "The deferred function leaves <code>err</code> alone, so the original failure is returned. The Workflow ends Failed, and every effect it caused has been undone.",
+      comps: ["ReleaseInventoryIfReserved", "RefundPaymentIfCharged"], ledger: ["reserve", "charge", "refund", "release"] },
+  ],
+};
+
+/* ?panes=without,with shows only those panes, in that order. An embed that
+   covers one half of the story passes one, and its tabs row disappears. */
+{
+  const only = new URLSearchParams(location.search).get("panes");
+  if (only) {
+    const keep = only.split(",");
+    const picked = keep.map((id) => PANES.find((p) => p.id === id)).filter(Boolean);
+    if (picked.length) PANES.splice(0, PANES.length, ...picked);
+  }
+}
+
+/* The order a presenter walks it: each pane's overview, then its steps. */
+const TOUR = PANES.flatMap((p) => [[p.id, -1], ...STEPS[p.id].map((_, i) => [p.id, i])]);
+
+/* ============================================================
+   MACHINERY.
+   ============================================================ */
+
+const KINDS = [
+  ["workflow", "Workflow", "var(--wf)", "var(--wf-bg)"],
+  ["activity", "Activity", "var(--act)", "var(--act-bg)"],
+  ["decision", "Outcome", "var(--dec)", "var(--dec-bg)"],
+];
+
+const params  = new URLSearchParams(location.search);
+const EMBED   = params.get("embed") === "1";
+const canvas  = document.getElementById("canvas");
+const tabsEl  = document.getElementById("tabs");
+const capEl   = document.getElementById("caption");
+const cntEl   = document.getElementById("counter");
+const dataEl  = document.getElementById("data");
+const backBtn = document.getElementById("back");
+const nextBtn = document.getElementById("next");
+const resetBtn= document.getElementById("reset");
+
+let activePane = PANES[0].id;
+let stepIndex = -1;           /* -1 means "show all", no dimming */
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function edgeId(e) { return e.from + ">" + e.to; }
+
+function build() {
+  tabsEl.innerHTML = PANES.map((p) =>
+    `<button class="tab" role="tab" type="button" data-pane="${p.id}">${esc(p.tab)}</button>`
+  ).join("");
+
+  const COL_MIN = 170, COL_GAP = 52;
+  const widest = Math.max(...PANES.map((p) => Math.max(...p.nodes.map((n) => n.col))));
+  canvas.style.minWidth = (widest * COL_MIN + (widest - 1) * COL_GAP) + "px";
+
+  canvas.innerHTML = PANES.map((p) => {
+    const nodes = p.nodes.map((n) => {
+      const dot = n.file ? `<span class="dot" style="background:${FILES[n.file] || "var(--ink-2)"}"></span>` : "";
+      const file = n.file ? `<div class="file">${dot}${esc(n.file)}</div>` : "";
+      return `<div class="node k-${n.kind}" data-node="${n.id}" style="grid-column:${n.col};grid-row:${n.row}">
+          <div class="title">${esc(n.title)}</div>
+          <div class="fn">${esc(n.fn).replace(/([_.])/g, "$1<wbr>").replace(/([a-z])([A-Z])/g, "$1<wbr>$2")}</div>${file}
+        </div>`;
+    }).join("");
+    /* Two SVG layers: paths under the nodes, labels above them. */
+    return `<div class="pane" data-pane="${p.id}">
+        <svg class="edges paths-layer" aria-hidden="true"><g class="paths"></g></svg>
+        <div class="grid" style="grid-template-columns:repeat(${widest},minmax(${COL_MIN}px,1fr))">${nodes}</div>
+        <svg class="edges labels-layer" aria-hidden="true"><g class="labels"></g></svg>
+      </div>`;
+  }).join("");
+
+  document.getElementById("legend").innerHTML = KINDS.map(([, label, hue, bg]) =>
+    `<span><i style="background:${bg};border-left-color:${hue}"></i>${esc(label)}</span>`
+  ).join("") + `<span>dashed edge: the failure path</span>`;
+}
+
+function drawEdges(pane) {
+  const paneEl = canvas.querySelector(`.pane[data-pane="${pane.id}"]`);
+  if (!paneEl || paneEl.offsetParent === null) return;
+
+  const pathSvg  = paneEl.querySelector("svg.paths-layer");
+  const labelSvg = paneEl.querySelector("svg.labels-layer");
+  const paths  = pathSvg.querySelector(".paths");
+  const labels = labelSvg.querySelector(".labels");
+  const base   = paneEl.getBoundingClientRect();
+
+  for (const svg of [pathSvg, labelSvg]) svg.setAttribute("viewBox", `0 0 ${base.width} ${base.height}`);
+  paths.innerHTML = "";
+  labels.innerHTML = "";
+
+  const box = (id) => {
+    const el = paneEl.querySelector(`.node[data-node="${id}"]`);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height };
+  };
+
+  for (const e of pane.edges) {
+    const a = box(e.from), b = box(e.to);
+    if (!a || !b) continue;
+
+    let x1, y1, x2, y2, d;
+    if (Math.abs(a.y - b.y) < 4) {                 /* same row */
+      y1 = a.y + a.h / 2; y2 = b.y + b.h / 2;
+      if (b.x >= a.x) { x1 = a.x + a.w; x2 = b.x; }  /* left to right */
+      else            { x1 = a.x; x2 = b.x + b.w; }  /* right to left: the unwind */
+      const mid = (x1 + x2) / 2;
+      d = `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2},${y2}`;
+    } else {                                        /* next row down */
+      x1 = a.x + a.w / 2; y1 = a.y + a.h;
+      x2 = b.x + b.w / 2; y2 = b.y;
+      const mid = (y1 + y2) / 2;
+      d = `M${x1},${y1} C${x1},${mid} ${x2},${mid} ${x2},${y2}`;
+    }
+
+    const cls = "edge" + (e.kind ? " e-" + e.kind : "");
+    paths.insertAdjacentHTML("beforeend",
+      `<g class="${cls}" data-edge="${edgeId(e)}"><path d="${d}" marker-end="url(#ah-${pane.id})"/></g>`);
+    if (e.label) {
+      labels.insertAdjacentHTML("beforeend",
+        `<g class="${cls}" data-edge="${edgeId(e)}"><text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 6}">${esc(e.label)}</text></g>`);
+    }
+  }
+
+  if (!pathSvg.querySelector("defs")) {
+    pathSvg.insertAdjacentHTML("afterbegin",
+      `<defs><marker id="ah-${pane.id}" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+         <path d="M0,0 L8,4 L0,8 z" fill="currentColor"/>
+       </marker></defs>`);
+  }
+  pathSvg.style.color = "var(--ink-2)";
+}
+
+/* The data strip for the current step, or the end state when showing all. */
+function renderData(pane, steps) {
+  const s = stepIndex >= 0 ? steps[stepIndex] : steps[steps.length - 1];
+  const order = ORDER.map(([k, v]) => `${k}=${esc(v)}`)
+    .reduce((acc, kv, i) => acc + (i === 0 ? "" : i % 2 ? ", " : "<br>") + kv, "");
+
+  let comps;
+  if (s.comps === null) comps = `<div class="empty">None registered. Nothing will undo a step.</div>`;
+  else if (s.comps.length === 0) comps = `<div class="empty">[] (empty)</div>`;
+  else comps = `<div class="chips">${s.comps.map((c, i) =>
+      `<span class="chip comp${stepIndex >= 0 && s.freshComp === i ? " new" : ""}">${esc(c)}</span>`).join("")}</div>`;
+
+  const kind = (e) => (e === "refund" || e === "release") ? "undo" : "fwd";
+  const ledger = s.ledger.length === 0
+    ? `<div class="empty">Nothing yet.</div>`
+    : `<div class="chips">${s.ledger.map((e) => {
+        const cls = ["chip", kind(e)];
+        if (s.stranded && s.stranded.includes(e)) cls.push("stranded");
+        if (stepIndex >= 0 && s.fresh === e) cls.push("new");
+        return `<span class="${cls.join(" ")}">${esc(e)}:ORD-7F3A21</span>`;
+      }).join("")}</div>`;
+
+  dataEl.innerHTML = `
+    <div class="card order"><h3>Input <span>Order</span></h3><div class="kv">${order}</div></div>
+    <div class="card"><h3>Workflow state <span>compensations</span></h3>${comps}</div>
+    <div class="card"><h3>Downstream systems <span>ledger.go</span></h3>${ledger}</div>`;
+}
+
+function render() {
+  const pane = PANES.find((p) => p.id === activePane) || PANES[0];
+  const steps = STEPS[pane.id] || [];
+
+  for (const t of tabsEl.querySelectorAll(".tab")) {
+    t.setAttribute("aria-selected", String(t.dataset.pane === pane.id));
+  }
+  for (const el of canvas.querySelectorAll(".pane")) {
+    el.classList.toggle("on", el.dataset.pane === pane.id);
+  }
+
+  drawEdges(pane);
+
+  const stepping = stepIndex >= 0 && stepIndex < steps.length;
+  canvas.classList.toggle("stepping", stepping);
+  for (const el of canvas.querySelectorAll(".node, .edge")) el.classList.remove("hot");
+
+  if (stepping) {
+    const s = steps[stepIndex];
+    for (const el of canvas.querySelectorAll(`.pane.on .node[data-node="${s.node}"]`)) el.classList.add("hot");
+    if (s.edge) {
+      for (const el of canvas.querySelectorAll(`.pane.on [data-edge="${s.edge}"]`)) el.classList.add("hot");
+    }
+    capEl.innerHTML = `<strong>STEP ${stepIndex + 1}.</strong> ${s.text}`;
+    cntEl.textContent = `${stepIndex + 1} / ${steps.length}`;
+  } else {
+    capEl.innerHTML = pane.id === "without"
+      ? "The courier fails after two steps have changed other systems. What undoes them?"
+      : "Every step registers its compensation first. On failure, the list runs in reverse.";
+    cntEl.textContent = steps.length ? `0 / ${steps.length}` : "";
+  }
+  renderData(pane, steps);
+
+  backBtn.disabled = stepIndex < 0;
+  nextBtn.disabled = stepIndex >= steps.length - 1;
+}
+
+function step(delta) {
+  const steps = STEPS[activePane] || [];
+  stepIndex = Math.max(-1, Math.min(steps.length - 1, stepIndex + delta));
+  render();
+}
+
+function goto(index) {
+  const [pane, i] = TOUR[Math.max(0, Math.min(TOUR.length - 1, index))];
+  activePane = pane;
+  stepIndex = i;
+  render();
+}
+
+function init() {
+  const forced = params.get("theme");
+  if (forced === "light" || forced === "dark") document.documentElement.dataset.theme = forced;
+  if (EMBED) document.documentElement.classList.add("embed");
+
+  build();
+  /* One pane: nothing to switch between. */
+  if (PANES.length < 2) tabsEl.style.display = "none";
+
+  tabsEl.addEventListener("click", (ev) => {
+    const t = ev.target.closest(".tab");
+    if (!t) return;
+    activePane = t.dataset.pane;
+    stepIndex = -1;
+    render();
+  });
+  backBtn.addEventListener("click", () => step(-1));
+  nextBtn.addEventListener("click", () => step(1));
+  resetBtn.addEventListener("click", () => { stepIndex = -1; render(); });
+  document.addEventListener("keydown", (ev) => {
+    if (!["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", " ", "PageDown", "PageUp"].includes(ev.key)) return;
+    if (EMBED) { parent.postMessage({ type: "saga-flow:key", key: ev.key }, "*"); ev.preventDefault(); return; }
+    if (ev.key === "ArrowRight") step(1);
+    if (ev.key === "ArrowLeft") step(-1);
+  });
+  window.addEventListener("message", (ev) => {
+    if (ev.data && ev.data.type === "saga-flow:goto") goto(Number(ev.data.index));
+  });
+  new ResizeObserver(() => render()).observe(canvas);
+
+  if (params.has("step")) goto(Number(params.get("step")));
+  else render();
+
+  /* Last line: a DOM dump proves the script parsed and ran. */
+  document.documentElement.dataset.ready = "1";
+}
+
+init();
+</script>
+</body>
+</html>
