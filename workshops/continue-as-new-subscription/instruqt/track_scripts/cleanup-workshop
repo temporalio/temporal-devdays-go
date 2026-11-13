@@ -1,0 +1,8 @@
+#!/bin/bash
+# ABOUTME: Track-level cleanup. Leaves no Worker holding the Task Queue.
+# `go run ./worker` forks a child binary named `worker`; stopping `go run` alone
+# leaves that child polling, so stop both by exact name. One pkill per pattern:
+# `pkill -f "a|b"` is a GNU-ism that silently kills nothing on macOS.
+pkill -x worker 2>/dev/null || true
+pkill -f "go run ./worker" 2>/dev/null || true
+echo "Track cleanup: OK"

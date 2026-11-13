@@ -1,0 +1,7 @@
+#!/bin/bash
+# ABOUTME: Skip for Challenge 1. Splices only "TODO 1" from solution/ into the
+# learner's subscription/workflow.go (the original is saved as .bak). A running
+# Worker keeps the old code until it is restarted with `go run ./worker`.
+set -euxo pipefail
+W=/root/workshop/continue-as-new-subscription
+workshop-solve "$W/exercise" "$W/solution" subscription/workflow.go "TODO 1"
