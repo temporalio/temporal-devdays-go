@@ -12,7 +12,9 @@
 //   --since/--until  a time window, for Ports done one after another;
 //   --agent          only the subagent transcripts whose file name contains one
 //                    of these ids, for Ports delegated to parallel subagents.
-//                    Implies --scope subagents.
+//                    Includes every agent those agents spawned in turn (read
+//                    from each agent-*.meta.json's parentAgentId). Implies
+//                    --scope subagents.
 //
 // Claude Code writes the main session to <project>/<session-id>.jsonl and each
 // subagent to <project>/<session-id>/subagents/agent-*.jsonl. Main-session lines
@@ -74,6 +76,21 @@ const dir = join(homedir(), '.claude', 'projects', slug);
 let files;
 try { files = walk(dir); } catch { console.error(`no such project dir: ${dir}`); process.exit(1); }
 if (files.length === 0) { console.error(`no transcripts under ${dir}`); process.exit(1); }
+
+// An agent's own helpers belong to its Port: follow parentAgentId to a fixpoint.
+if (agents) {
+  const parent = new Map();
+  for (const f of files) {
+    const m = /agent-([0-9a-f]+)\.jsonl$/.exec(f);
+    if (!m) continue;
+    try { parent.set(m[1], JSON.parse(readFileSync(f.replace(/\.jsonl$/, '.meta.json'), 'utf8')).parentAgentId); } catch {}
+  }
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const [id, p] of parent) if (p && agents.includes(p) && !agents.includes(id)) { agents.push(id); grew = true; }
+  }
+}
 
 const blank = () => ({ models: new Map(), stamps: [], files: new Set() });
 const buckets = { main: blank(), subagents: blank() };

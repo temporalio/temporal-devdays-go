@@ -1,5 +1,6 @@
 ---
 slug: register-first
+id: ing0dsw2w4la
 type: challenge
 title: 2. Register before you run
 teaser: The gateway captures the money, then times out. The refund never runs.
@@ -14,26 +15,31 @@ notes:
     An error is not proof that nothing happened. If the undo is only registered
     once the step succeeds, this charge is never refunded.
 tabs:
-- title: Exercise
+- id: iu9vbqph5viq
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/saga-order-fulfillment
   port: 8080
-- title: Worker
+- id: tlmrdm8b6wbx
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/saga-order-fulfillment/exercise
-- title: Client
+- id: y0g4jbjuplvo
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/saga-order-fulfillment/exercise
-- title: Temporal UI
+- id: ucs8c8dcmtes
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: intermediate
 timelimit: 600
+enhanced_loading: null
 ---
 
 # Goal

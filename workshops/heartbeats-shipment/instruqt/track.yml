@@ -1,4 +1,5 @@
 slug: heartbeats-go
+id: jukaeqiy4gvx
 title: Activity Heartbeats (Go)
 teaser: Crash a Worker mid-job and watch the retry wait, then start over. Add Heartbeats
   and watch it pick up in seconds, where it left off. Ten minutes.
@@ -31,6 +32,7 @@ tags:
 owner: temporal
 developers:
 - nikolay.advolodkin@temporal.io
+maintenance: true
 skipping_enabled: true
 idle_timeout: 3600
 timelimit: 1800
@@ -51,4 +53,5 @@ lab_config:
   hideStopButton: false
   default_layout: AssignmentLeft
   default_layout_sidebar_size: 33
+checksum: "4140866092805269762"
 enhanced_loading: false

@@ -1,5 +1,6 @@
 ---
 slug: durability-and-human-review
+id: hirxcwtpvvku
 type: challenge
 title: 5. Break it, then finish it
 teaser: Take the Compliance Worker down mid-payment. Watch the payment wait instead
@@ -21,25 +22,30 @@ notes:
     It parks its metabolism and picks up where it left off. Your payment
     Workflow is about to do the same.
 tabs:
-- title: Exercise
+- id: ydwpzakx6hoe
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/nexus-decouple-monolith
   port: 8080
-- title: Temporal UI
+- id: ir4uyuqiypee
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
-- title: Terminal
+- id: flrdh4nlnzc4
+  title: Terminal
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Payments Worker
+- id: hu1k331j13e0
+  title: Payments Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Compliance Worker
+- id: nhw7myyulcwj
+  title: Compliance Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise

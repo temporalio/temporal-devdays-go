@@ -1,4 +1,5 @@
 slug: continue-as-new-go
+id: k5lhcficmxku
 title: Continue-As-New (Go)
 teaser: A subscription bills every cycle until the Temporal Service terminates it.
   Add Continue-As-New and watch it finish. Ten minutes.
@@ -25,11 +26,12 @@ icon: ""
 tags:
 - continue-as-new
 - temporal
-- event-history
 - go
+- event-history
 owner: temporal
 developers:
 - nikolay.advolodkin@temporal.io
+maintenance: true
 skipping_enabled: true
 idle_timeout: 3600
 timelimit: 1800
@@ -50,4 +52,5 @@ lab_config:
   hideStopButton: false
   default_layout: AssignmentLeft
   default_layout_sidebar_size: 33
+checksum: "460611230913752671"
 enhanced_loading: false

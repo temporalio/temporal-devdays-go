@@ -1,5 +1,6 @@
 ---
 slug: run-it
+id: nnn4srwbmd5p
 type: challenge
 title: 1. Run It
 teaser: Start a money transfer with no Worker running and watch it wait. Start the
@@ -38,26 +39,31 @@ notes:
     **Event History.** The Event History is the Service's record of every step a
     Workflow took.
 tabs:
-- title: Exercise
+- id: c6brntizrryh
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/first-workflow-money-transfer
   port: 8080
-- title: Worker
+- id: b5wrwvlda8bc
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/first-workflow-money-transfer/exercise
-- title: Client
+- id: ofkkl9xfwg0g
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/first-workflow-money-transfer/exercise
-- title: Temporal UI
+- id: mrkw05yiou9p
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: basic
 timelimit: 600
+enhanced_loading: null
 ---
 
 # Goal

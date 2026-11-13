@@ -1,5 +1,6 @@
 ---
 slug: unwind
+id: 2xuuqnmxzs9r
 type: challenge
 title: 1. Unwinding an order that failed halfway
 teaser: An order reserves stock and charges a card, then fails. Watch nobody clean
@@ -21,26 +22,31 @@ notes:
 
     **Author:** [Nikolay Advolodkin](https://www.linkedin.com/in/nikolayadvolodkin/), Staff Developer Advocate
 tabs:
-- title: Exercise
+- id: 0wxxe9ky133a
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/saga-order-fulfillment
   port: 8080
-- title: Worker
+- id: iny1llzcsiqy
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/saga-order-fulfillment/exercise
-- title: Client
+- id: uairztndskil
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/saga-order-fulfillment/exercise
-- title: Temporal UI
+- id: sgepyfcsky5o
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: intermediate
 timelimit: 900
+enhanced_loading: null
 ---
 
 # The setup

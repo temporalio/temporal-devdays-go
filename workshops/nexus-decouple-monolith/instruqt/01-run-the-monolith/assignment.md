@@ -1,5 +1,6 @@
 ---
 slug: run-the-monolith
+id: cbpmj4du3ejl
 type: challenge
 title: 1. Run the monolith
 teaser: Run three payments through one Worker, then find the coupling in the code.
@@ -29,25 +30,30 @@ notes:
     A Temporal dev server is starting, and two Namespaces are being created,
     one for Payments and one for Compliance. Only one of them has anything in it.
 tabs:
-- title: Exercise
+- id: prtpmixunu5a
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/nexus-decouple-monolith
   port: 8080
-- title: Temporal UI
+- id: wzwxjtqhwq3k
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
-- title: Terminal
+- id: akjmeqice4mo
+  title: Terminal
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Payments Worker
+- id: pyawcgfrxijq
+  title: Payments Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Compliance Worker
+- id: gx9qttntvpaa
+  title: Compliance Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise

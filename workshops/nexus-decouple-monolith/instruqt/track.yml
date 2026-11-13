@@ -1,4 +1,5 @@
 slug: nexus-decouple-monolith-go
+id: rxjv3fozaiti
 title: 'Nexus: Decouple a Monolith (Go)'
 teaser: Split a payments monolith into two independently deployable services connected
   by Nexus.
@@ -17,13 +18,14 @@ description: |-
   Built on the Temporal Go SDK. Five challenges, three of them hands-on.
 icon: ""
 tags:
+- golang
 - nexus
 - temporal
 - go
-- golang
 owner: temporal
 developers:
 - nikolay.advolodkin@temporal.io
+maintenance: true
 skipping_enabled: true
 idle_timeout: 3600
 timelimit: 7200
@@ -49,4 +51,5 @@ lab_config:
   hideStopButton: false
   default_layout: AssignmentLeft
   default_layout_sidebar_size: 33
+checksum: "5762474894422410819"
 enhanced_loading: false

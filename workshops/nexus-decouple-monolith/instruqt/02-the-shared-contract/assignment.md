@@ -1,5 +1,6 @@
 ---
 slug: the-shared-contract
+id: iru89bayjx82
 type: challenge
 title: 2. The shared contract
 teaser: Write the contract both teams depend on. One file, two Operations.
@@ -22,25 +23,30 @@ notes:
 
     You write the Service now. The other three come next.
 tabs:
-- title: Exercise
+- id: jhlkcfobqscw
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/nexus-decouple-monolith
   port: 8080
-- title: Temporal UI
+- id: baandcybypyx
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
-- title: Terminal
+- id: yqcfcixu3ot1
+  title: Terminal
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Payments Worker
+- id: bcozm7jx2ls0
+  title: Payments Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Compliance Worker
+- id: xw6xranfoi4e
+  title: Compliance Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise

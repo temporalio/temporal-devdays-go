@@ -1,5 +1,6 @@
 ---
 slug: safe-to-repeat
+id: cccnrr67aohs
 type: challenge
 title: 3. Make the undo safe to repeat
 teaser: The undo now runs before you know the step worked. Make it cope with nothing
@@ -16,26 +17,31 @@ notes:
     An undo that cannot tell whether there is anything to undo does damage of
     its own.
 tabs:
-- title: Exercise
+- id: si7qad1winue
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/saga-order-fulfillment
   port: 8080
-- title: Worker
+- id: lfuejxd2zyhd
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/saga-order-fulfillment/exercise
-- title: Client
+- id: gzf4aca6k67q
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/saga-order-fulfillment/exercise
-- title: Temporal UI
+- id: ohy6xzm5oxiu
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: intermediate
 timelimit: 600
+enhanced_loading: null
 ---
 
 # Goal

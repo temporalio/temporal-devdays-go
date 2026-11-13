@@ -1,0 +1,129 @@
+/* Landing page. One memorable thing: the Event History, which is the Temporal
+   artifact every lab ends on. Everything else stays quiet. */
+:root {
+  --paper: #eef3f6;
+  --panel: #ffffff;
+  --ink: #14232f;
+  --muted: #4b6072;
+  --go: #00758f;       /* Go's cyan, darkened to pass AA as text */
+  --go-fill: #00add8;
+  --ok: #2b7a4b;
+  --warn: #9a6200;
+  --fail: #b5372e;
+  --rule: #c8d5de;
+  --sans: "Bricolage Grotesque", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1c26; --panel: #152633; --ink: #e2ecf2; --muted: #95abba;
+    --go: #4fcbed; --go-fill: #00add8; --ok: #62c48f; --warn: #e3ab45; --fail: #f17a6e; --rule: #284050;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f1c26; --panel: #152633; --ink: #e2ecf2; --muted: #95abba;
+  --go: #4fcbed; --go-fill: #00add8; --ok: #62c48f; --warn: #e3ab45; --fail: #f17a6e; --rule: #284050;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 1.0625rem/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+main, .foot { max-width: 72rem; margin: 0 auto; padding: 0 1rem; }
+@media (min-width: 48rem) { main, .foot { padding: 0 2.5rem; } }
+a { color: var(--go); text-underline-offset: 0.2em; }
+a:focus-visible, .start:focus-visible { outline: 3px solid var(--go-fill); outline-offset: 3px; border-radius: 4px; }
+
+/* --- Hero ------------------------------------------------------------------ */
+.hero {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.5rem; align-items: center;
+  padding: 3.5rem 0 3rem;
+}
+@media (min-width: 60rem) { .hero { grid-template-columns: minmax(0, 1fr) 30rem; gap: 4rem; padding: 6rem 0 5rem; } }
+.kicker { margin: 0 0 1rem; color: var(--go); font-weight: 600; }
+h1 {
+  margin: 0 0 1.25rem; font-weight: 800; font-size: clamp(2.4rem, 6vw, 4.25rem);
+  line-height: 1.02; letter-spacing: -0.03em; max-width: 14ch;
+  font-variation-settings: "opsz" 96;
+}
+.lede { margin: 0 0 2rem; font-size: 1.25rem; color: var(--muted); max-width: 34rem; }
+.aside { margin: 1.25rem 0 0; color: var(--muted); font-size: 0.95rem; overflow-wrap: anywhere; }
+.back { margin: 1.5rem 0 0; }
+.steps { margin: 0 0 2rem; padding-left: 1.4rem; max-width: 34rem; }
+.steps li { margin: 0.35rem 0; }
+.steps li::marker { color: var(--go); font-weight: 600; }
+
+.start {
+  display: inline-block; padding: 0.7rem 1.2rem; border-radius: 999px;
+  background: var(--ink); color: var(--paper); text-decoration: none; font-weight: 600;
+  white-space: nowrap;
+}
+.start:hover { background: var(--go); }
+.start.big { padding: 0.95rem 1.6rem; font-size: 1.1rem; }
+.start.soon { background: transparent; color: var(--muted); border: 1px dashed var(--rule); cursor: default; }
+
+/* --- The Event History ----------------------------------------------------- */
+.panel {
+  margin: 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 14px;
+  padding: 0.5rem 0; overflow: hidden;
+}
+.panel figcaption { padding: 0.75rem 1.25rem 0.5rem; color: var(--muted); font-size: 0.875rem; border-top: 1px solid var(--rule); }
+.history { list-style: none; margin: 0; padding: 0; font: 400 0.85rem/1.4 var(--mono); }
+.history li {
+  display: grid; grid-template-columns: 2.25rem 1fr; column-gap: 0.75rem;
+  padding: 0.6rem 1.25rem; border-left: 3px solid transparent;
+}
+.history li + li { border-top: 1px solid color-mix(in srgb, var(--rule) 60%, transparent); }
+.history .id { color: var(--muted); text-align: right; }
+.history .type { font-weight: 600; overflow-wrap: anywhere; }
+.history .detail { grid-column: 2; color: var(--muted); }
+.history .detail:empty { display: none; }
+.history .ok { border-left-color: var(--ok); }
+.history .ok .type { color: var(--ok); }
+.history .warn { border-left-color: var(--warn); }
+.history .warn .type { color: var(--warn); }
+.history .fail { border-left-color: var(--fail); }
+.history .fail .type { color: var(--fail); }
+.history .note {
+  font-family: var(--sans); font-style: italic; color: var(--fail);
+  background: color-mix(in srgb, var(--fail) 8%, transparent);
+}
+
+/* The one moment of motion: the history writes itself, event by event. */
+@media (prefers-reduced-motion: no-preference) {
+  .history.play li { opacity: 0; animation: write 0.35s ease-out forwards; animation-delay: calc(0.25s + var(--i) * 0.42s); }
+  @keyframes write { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+}
+
+/* --- Lab list -------------------------------------------------------------- */
+.labs { padding-bottom: 4rem; }
+.labs h2 {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem;
+  margin: 3rem 0 0; padding-bottom: 0.75rem; border-bottom: 2px solid var(--ink);
+  font-size: 1.75rem; letter-spacing: -0.01em;
+}
+.labs h2 span { font-size: 1rem; font-weight: 400; color: var(--muted); }
+.rows { list-style: none; margin: 0; padding: 0; }
+.row {
+  display: grid; gap: 0.75rem 2rem; align-items: center;
+  padding: 1.5rem 0; border-bottom: 1px solid var(--rule);
+  grid-template-columns: 1fr auto;
+}
+.row > div { grid-column: 1 / -1; }
+.row h3 { margin: 0 0 0.35rem; font-size: 1.35rem; letter-spacing: -0.01em; }
+.row h3 a { color: var(--ink); text-decoration: none; }
+.row h3 a:hover { color: var(--go); text-decoration: underline; }
+.row p { margin: 0; color: var(--muted); max-width: 44rem; }
+.row .mins { font: 600 0.9rem var(--mono); color: var(--ink); }
+@media (min-width: 48rem) {
+  .row { grid-template-columns: 1fr 5.5rem auto; }
+  .row > div { grid-column: auto; }
+  .row .mins { text-align: right; }
+}
+
+.foot { padding-top: 2rem; padding-bottom: 3rem; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--rule); }

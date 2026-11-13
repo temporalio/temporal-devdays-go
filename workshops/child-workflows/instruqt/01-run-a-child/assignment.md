@@ -1,5 +1,6 @@
 ---
 slug: run-a-child
+id: ems2rdrgqpds
 type: challenge
 title: 1. Run a Child
 teaser: One Workflow starts another and waits for its result. Find both in the Temporal
@@ -24,26 +25,31 @@ notes:
 
     **Fan in.** Wait for all of them and collect their results.
 tabs:
-- title: Exercise
+- id: g0euryo6sdzf
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/child-workflows
   port: 8080
-- title: Worker
+- id: gnmbhwyshsuk
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/child-workflows/exercise
-- title: Client
+- id: zutejjesizui
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/child-workflows/exercise
-- title: Temporal UI
+- id: o0yd8rertvcx
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: basic
 timelimit: 300
+enhanced_loading: null
 ---
 
 # Goal

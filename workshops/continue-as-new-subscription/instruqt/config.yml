@@ -4,8 +4,8 @@ containers:
   # The one Sandbox Image every Go Track boots (ADR 0004). Re-pinned by digest at
   # publish, never left on :latest: a moving tag lets a sandbox boot a cached
   # older image. Get the digest with:
-  #   docker buildx imagetools inspect ghcr.io/temporalio/temporal-devdays-go-sandbox:latest --format "{{.Manifest.Digest}}"
-  image: ghcr.io/temporalio/temporal-devdays-go-sandbox:latest
+  #   docker buildx imagetools inspect ghcr.io/temporalio/temporal-devdays-go-sandbox@sha256:ab856480548a79f1865e82399799e5583620f9c0824ca68e79e5c603a15b76b5 --format "{{.Manifest.Digest}}"
+  image: ghcr.io/temporalio/temporal-devdays-go-sandbox@sha256:ab856480548a79f1865e82399799e5583620f9c0824ca68e79e5c603a15b76b5
   shell: /bin/bash
   # One Go Worker, a Temporal dev server with lowered history limits, one
   # code-server with gopls, and the Checks' own dev server while they run.

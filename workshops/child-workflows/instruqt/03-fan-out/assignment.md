@@ -1,5 +1,6 @@
 ---
 slug: fan-out
+id: grgwdvtroo8f
 type: challenge
 title: 3. Fan Out
 teaser: Start one child per item, all at once, then close the parent without waiting.
@@ -16,26 +17,31 @@ notes:
     This parent then returns before any child finishes. Watch what its Parent
     Close Policy does to them.
 tabs:
-- title: Exercise
+- id: ml5ikatmfuqu
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/child-workflows
   port: 8080
-- title: Worker
+- id: uqgdfu4csfwi
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/child-workflows/exercise
-- title: Client
+- id: l7jxeiiwvy1r
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/child-workflows/exercise
-- title: Temporal UI
+- id: 2rr54qj3gpee
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: basic
 timelimit: 300
+enhanced_loading: null
 ---
 
 # Goal

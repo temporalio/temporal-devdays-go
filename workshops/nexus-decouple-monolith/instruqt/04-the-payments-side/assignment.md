@@ -1,5 +1,6 @@
 ---
 slug: the-payments-side
+id: xlesumsiyh3h
 type: challenge
 title: 4. The payments side
 teaser: Swap the Activity call for a Nexus client, point it at the Endpoint, and delete
@@ -21,25 +22,30 @@ notes:
     the Payments process. Deleting it is the decoupling. Everything else is
     wiring.
 tabs:
-- title: Exercise
+- id: gcyddxdtd41a
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/nexus-decouple-monolith
   port: 8080
-- title: Temporal UI
+- id: 7u0gncl8hkx4
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
-- title: Terminal
+- id: uihtj0ned5sx
+  title: Terminal
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Payments Worker
+- id: qv5qw2mpu8gq
+  title: Payments Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Compliance Worker
+- id: xe5evcujussd
+  title: Compliance Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
