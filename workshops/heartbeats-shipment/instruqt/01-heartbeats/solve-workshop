@@ -1,0 +1,9 @@
+#!/bin/bash
+# ABOUTME: Skip for Challenge 1. Splices TODO 1a into workflows.go and TODO 1b
+# and 1c into activities.go from solution/, keeping the learner's own work
+# everywhere else (the originals are saved as .bak). A running Worker keeps the
+# old code until it is restarted with `go run ./worker`.
+set -euxo pipefail
+W=/root/workshop/heartbeats-shipment
+workshop-solve "$W/exercise" "$W/solution" workflows.go "TODO 1a"
+workshop-solve "$W/exercise" "$W/solution" activities.go "TODO 1b" "TODO 1c"

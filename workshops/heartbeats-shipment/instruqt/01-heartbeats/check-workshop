@@ -1,0 +1,5 @@
+#!/bin/bash
+# ABOUTME: Gated Check for Challenge 1 (ADR 0003). Vets the Exercise, runs the
+# TestChallenge1_ tests (one per part of TODO 1, in order), and shows the first
+# failing test's message, which names the file and the part still to do.
+exec workshop-check /root/workshop/heartbeats-shipment/exercise 1
