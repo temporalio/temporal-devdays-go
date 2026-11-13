@@ -1,0 +1,5 @@
+#!/bin/bash
+# ABOUTME: Track-level cleanup. Leaves no Worker holding the Task Queue.
+# `go run ./worker` runs a child binary named worker; that is what holds it.
+pkill -x worker 2>/dev/null || true
+echo "Track cleanup: OK"

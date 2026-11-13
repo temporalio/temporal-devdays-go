@@ -1,0 +1,53 @@
+slug: your-first-workflow-go
+title: Your First Workflow (Go)
+teaser: Run a money transfer as a Temporal Workflow. Watch it wait for a Worker, then
+  crash the Worker mid-bug, fix it, and watch the same transfer finish. Fifteen minutes.
+description: |-
+  A money transfer is two steps: take the money out of one account, put it
+  into another. If the second step fails, the first has already happened.
+
+  Temporal runs those steps as a Workflow. It records every step in an Event
+  History, retries what fails, and carries on after a crash from exactly where
+  it stopped.
+
+  Two Challenges, about fifteen minutes:
+
+  1. Start a transfer with no Worker running and watch it wait. Start the
+     Worker and watch it finish. Read its Event History.
+  2. Start a large transfer that hits a bug and watch the deposit retry. Crash
+     the Worker, fix the bug, start it again, and watch the same transfer
+     finish without taking the money out twice.
+
+  The Check reads your Workflow's history and tells you what is missing.
+
+  **Prerequisite:** none. You need to read Go; you do not need to know Temporal.
+icon: ""
+tags:
+- workers
+- activities
+- temporal
+- workflows
+- go
+owner: temporal
+developers:
+- nikolay.advolodkin@temporal.io
+skipping_enabled: true
+idle_timeout: 3600
+timelimit: 1800
+lab_config:
+  extend_ttl: 900
+  sidebar_enabled: true
+  feedback_recap_enabled: true
+  feedback_tab_enabled: true
+  loadingMessages:
+  - Starting the Temporal dev server...
+  - Opening two bank accounts...
+  - A Workflow waits for a Worker; it never gives up on its own...
+  - Every step a Workflow takes lands in its Event History...
+  - Opening the code editor...
+  - Loading the Temporal UI...
+  - Almost ready...
+  override_challenge_layout: true
+  hideStopButton: false
+  default_layout: AssignmentLeft
+  default_layout_sidebar_size: 33
