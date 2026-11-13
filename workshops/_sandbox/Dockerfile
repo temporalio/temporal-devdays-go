@@ -28,7 +28,8 @@ RUN curl -fsSL \
     && chmod +x /usr/local/bin/temporal
 
 # --- Go tools the editor needs, installed now so it never prompts --------------
-RUN go install golang.org/x/tools/gopls@v0.24.0 \
+# gopls must match the image's Go: v0.24 needs Go 1.27.
+RUN go install golang.org/x/tools/gopls@v0.23.0 \
     && go install github.com/go-delve/delve/cmd/dlv@v1.27.2
 
 # --- code-server (VS Code in the browser, the Exercise tab) -------------------
