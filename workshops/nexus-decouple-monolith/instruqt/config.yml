@@ -1,0 +1,19 @@
+version: "3"
+containers:
+- name: workshop
+  # The one Sandbox Image every Go Track boots (ADR 0004). `:latest` only until
+  # the first publish: re-pin by digest then, and after every image rebuild,
+  # with
+  #   docker buildx imagetools inspect ghcr.io/temporalio/temporal-devdays-go-sandbox:latest --format "{{.Manifest.Digest}}"
+  # A moving tag can boot a cached older image with stale Exercise code.
+  image: ghcr.io/temporalio/temporal-devdays-go-sandbox:latest
+  shell: /bin/bash
+  # Sized for several Go Workers (two `go run` Workers, each a go parent plus its
+  # child binary, and the Check's test binary with its own dev server and
+  # Workers), the lab's Temporal dev server, and one code-server with gopls.
+  memory: 6144
+  # Every port a challenge tab points at MUST be listed here. Instruqt's proxy
+  # cannot reach an undeclared port, and the tab shows "Please wait" forever.
+  ports:
+  - 8233   # Temporal UI
+  - 8080   # code-server, the Exercise tab

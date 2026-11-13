@@ -1,0 +1,4 @@
+#!/bin/bash
+# ABOUTME: Challenge 02 Check (ADR 0003): the Exercise compiles, and the
+# TestChallenge1_ to TestChallenge2_ tests pass. Fails naming the file and TODO.
+exec workshop-check /root/workshop/nexus-decouple-monolith/exercise 2

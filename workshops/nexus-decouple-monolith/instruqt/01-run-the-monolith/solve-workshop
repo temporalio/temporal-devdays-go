@@ -1,0 +1,20 @@
+#!/bin/bash
+# ABOUTME: Challenge 01 solve. Runs the monolith as shipped, end to end, so the
+# Check sees three finished payments. Edits no code.
+set -euxo pipefail
+
+cd /root/workshop/nexus-decouple-monolith/exercise
+
+pkill -f "payments-worker" || true
+sleep 1
+
+nohup go run ./payments-worker > /tmp/payments-worker.log 2>&1 &
+for i in $(seq 1 120); do
+    grep -q "Payments Worker started" /tmp/payments-worker.log && break
+    sleep 1
+done
+grep -q "Payments Worker started" /tmp/payments-worker.log
+
+go run ./starter > /tmp/starter.log 2>&1
+cat /tmp/starter.log
+grep -q "All 3 transactions resolved" /tmp/starter.log

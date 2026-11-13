@@ -1,0 +1,18 @@
+#!/bin/bash
+# ABOUTME: Challenge 05 setup. Clean slate so the outage demo is deterministic.
+#
+# Terminates leftovers from challenge 04, including the parked TXN-B. Without
+# this, the starter would attach to the still-Running payment-TXN-B instead of
+# starting a fresh one, and its Nexus Operation would never see the outage.
+set -euxo pipefail
+
+pkill -f "payments-worker"   || true
+pkill -f "compliance-worker" || true
+
+ADDR=127.0.0.1:7233
+temporal workflow terminate --address "$ADDR" --namespace payments-namespace \
+    --query 'ExecutionStatus="Running"' --reason "challenge 05 reset" --yes >/dev/null 2>&1 || true
+temporal workflow terminate --address "$ADDR" --namespace compliance-namespace \
+    --query 'ExecutionStatus="Running"' --reason "challenge 05 reset" --yes >/dev/null 2>&1 || true
+sleep 2
+true

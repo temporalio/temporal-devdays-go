@@ -1,0 +1,11 @@
+#!/bin/bash
+# ABOUTME: Challenge 04 Check (ADR 0003): the Exercise compiles, and the
+# TestChallenge1_ to TestChallenge4_ tests pass. They run both teams' Workers
+# against the test's own dev server: the payment must reach Compliance through
+# Nexus (TODO 4a, 4b), the review must go through Nexus (TODO 4c), and the
+# Payments Worker must no longer run the Compliance Activity (TODO 5a, 5b).
+#
+# A Nexus Endpoint name that does not exist hangs rather than fails: the server
+# rejects the command and the Workflow Task retries forever. The tests watch
+# for that retry loop and name ComplianceEndpoint in shared/types.go.
+exec workshop-check /root/workshop/nexus-decouple-monolith/exercise 4

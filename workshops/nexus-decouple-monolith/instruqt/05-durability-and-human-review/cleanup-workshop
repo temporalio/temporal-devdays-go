@@ -1,0 +1,8 @@
+#!/bin/bash
+# ABOUTME: Challenge 05 cleanup. One pkill per pattern.
+set -euo pipefail
+
+pkill -f "payments-worker"   || true
+pkill -f "compliance-worker" || true
+pkill -f "review-starter"    || true
+sleep 1

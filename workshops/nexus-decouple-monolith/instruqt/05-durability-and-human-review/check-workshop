@@ -1,0 +1,5 @@
+#!/bin/bash
+# ABOUTME: Challenge 05 Check (observe-only, ADR 0003). Passes once the lab's dev
+# server shows payments that waited out a Compliance Worker outage, and TXN-B
+# released by a review sent through Nexus.
+exec nexus-check-outage

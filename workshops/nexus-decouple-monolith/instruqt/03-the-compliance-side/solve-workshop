@@ -1,0 +1,22 @@
+#!/bin/bash
+# ABOUTME: Challenge 03 Skip. Splices TODO 2 and TODO 3 in from the Solution and
+# nothing else, then proves the Compliance Worker boots and polls for Nexus tasks.
+set -euxo pipefail
+
+WS=/root/workshop/nexus-decouple-monolith
+workshop-solve "$WS/exercise" "$WS/solution" compliance/handler.go "TODO 2"
+workshop-solve "$WS/exercise" "$WS/solution" compliance/worker.go "TODO 3"
+
+cd "$WS/exercise"
+go vet ./...
+
+# Prove the wiring boots, then stop it. Challenge 04 starts its own Workers.
+pkill -f "compliance-worker" || true
+sleep 1
+nohup go run ./compliance-worker > /tmp/compliance-worker.log 2>&1 &
+for i in $(seq 1 120); do
+    grep -q "Compliance Worker started" /tmp/compliance-worker.log && break
+    sleep 1
+done
+grep -q "Compliance Worker started" /tmp/compliance-worker.log
+pkill -f "compliance-worker" || true
