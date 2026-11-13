@@ -1,0 +1,19 @@
+{
+  "name": "go-master-slides",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Temporal Essentials in Go: the Foundations Deck and the pool of conceptual slides every Go DevDays Workshop draws from",
+  "scripts": {
+    "dev": "slidev --open",
+    "build": "slidev build",
+    "export": "slidev export",
+    "check:walkthroughs": "node scripts/check-walkthroughs.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@slidev/cli": "^52.19.0",
+    "playwright-chromium": "^1.62.1",
+    "prettier": "^3.9.6",
+    "prettier-plugin-slidev": "^1.0.5"
+  }
+}

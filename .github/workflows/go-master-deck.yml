@@ -1,0 +1,57 @@
+name: go-master Deck
+
+on:
+  pull_request:
+    paths: ["decks/go-master/**", ".github/workflows/go-master-deck.yml"]
+  push:
+    branches: [main]
+    paths: ["decks/go-master/**"]
+
+# Read-only: both jobs only check out and test.
+permissions:
+  contents: read
+
+jobs:
+  snippets:
+    name: Code slides (vet, drift, parse, walkthrough steps, runtime)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: decks/go-master/snippets
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: decks/go-master/snippets/go.mod
+          cache-dependency-path: decks/go-master/snippets/go.sum
+      # The same CLI the Sandbox Image bakes in; the runtime tests start their
+      # dev server from it.
+      - name: Install the Temporal CLI
+        run: |
+          curl -fsSL https://github.com/temporalio/cli/releases/download/v1.10.0/temporal_cli_1.10.0_linux_amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin temporal
+          temporal --version
+      - run: go vet ./... && go test -count=1 ./...
+
+  walkthroughs:
+    name: Walkthrough bubbles sit on their lines (rendered)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: decks/go-master
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: decks/go-master/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start the dev server
+        run: |
+          npx slidev --port 3030 > slidev.log 2>&1 &
+          npx --yes wait-on --timeout 120000 http://localhost:3030
+      - run: npm run check:walkthroughs
+      - if: failure()
+        run: cat slidev.log

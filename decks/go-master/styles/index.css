@@ -1,0 +1,27 @@
+/* Deck-local helpers. The theme's styles live in theme/styles and are not
+   edited here, so the vendored theme stays identical across decks. */
+
+/* Go code is gofmt-indented with tabs. Browsers default a tab to eight
+   columns; four reads like the editor the room uses. */
+pre,
+code {
+  tab-size: 4;
+}
+
+/* Two columns under a normal slide heading, each with an eyebrow label.
+   Used instead of the theme's two-cols-header layout, whose `title` prop
+   Slidev swallows as slide metadata. */
+.cols-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  margin-top: 0.4rem;
+}
+.col-eyebrow {
+  margin: 0 0 0.4rem !important;
+  font-size: 0.72rem !important;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--temporal-green);
+}
