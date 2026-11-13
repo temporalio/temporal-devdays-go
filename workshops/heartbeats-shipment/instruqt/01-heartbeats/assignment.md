@@ -1,5 +1,6 @@
 ---
 slug: heartbeats
+id: eijvtxe91fpw
 type: challenge
 title: 1. Activity Heartbeats
 teaser: Crash a Worker mid-job and watch the retry wait, then start over. Add Heartbeats
@@ -28,26 +29,31 @@ notes:
     **Heartbeat details.** The progress sent with the last Heartbeat. The next
     attempt can read it back.
 tabs:
-- title: Exercise
+- id: osrvsb2su1ff
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/heartbeats-shipment
   port: 8080
-- title: Worker
+- id: ff0cyia5spar
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/heartbeats-shipment/exercise
-- title: Client
+- id: 6ay6xl86geva
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/heartbeats-shipment/exercise
-- title: Temporal UI
+- id: mmbiclv9id3l
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: advanced
 timelimit: 600
+enhanced_loading: null
 ---
 
 # Goal

@@ -1,4 +1,5 @@
 slug: child-workflows-go
+id: kyg8ggjle3lo
 title: Child Workflows (Go)
 teaser: Start a child, chain children five deep, fan out, then write the fan in.
 description: |-
@@ -22,11 +23,12 @@ icon: ""
 tags:
 - child-workflows
 - temporal
-- patterns
 - go
+- patterns
 owner: temporal
 developers:
 - nikolay.advolodkin@temporal.io
+maintenance: true
 skipping_enabled: true
 idle_timeout: 3600
 timelimit: 1800
@@ -47,3 +49,5 @@ lab_config:
   hideStopButton: false
   default_layout: AssignmentLeft
   default_layout_sidebar_size: 33
+checksum: "18196301235068343704"
+enhanced_loading: false

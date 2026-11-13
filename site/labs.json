@@ -1,0 +1,238 @@
+{
+  "base": "https://temporalio.github.io/temporal-devdays-go",
+  "repo": "https://github.com/temporalio/temporal-devdays-go",
+  "labs": [
+    {
+      "slug": "your-first-workflow",
+      "workshop": "first-workflow-money-transfer",
+      "title": "Your First Workflow",
+      "level": "Foundations",
+      "minutes": 15,
+      "pitch": "Run a money transfer as a Temporal Workflow. Crash the Worker in the middle of a bug, fix the bug, and watch the same transfer finish without taking the money out twice.",
+      "steps": [
+        "Start a transfer with no Worker running and watch it wait.",
+        "Start the Worker, watch it finish, and read the Event History.",
+        "Hit a deposit bug, crash the Worker, fix it, and watch the transfer complete."
+      ],
+      "events": [
+        [
+          "ActivityTaskCompleted",
+          "Withdraw",
+          "ok"
+        ],
+        [
+          "ActivityTaskScheduled",
+          "Deposit",
+          ""
+        ],
+        [
+          "ActivityTaskStarted",
+          "Deposit, attempt 4",
+          "warn"
+        ],
+        [
+          "ActivityTaskCompleted",
+          "Deposit",
+          "ok"
+        ],
+        [
+          "WorkflowExecutionCompleted",
+          "",
+          "ok"
+        ]
+      ],
+      "invite": "https://play.instruqt.com/temporal/invite/r8azhqt26ino"
+    },
+    {
+      "slug": "child-workflows",
+      "workshop": "child-workflows",
+      "title": "Child Workflows",
+      "level": "Foundations",
+      "minutes": 15,
+      "pitch": "Start a Child Workflow, chain children five deep, fan out to many at once, then write the fan in that collects their results.",
+      "steps": [
+        "Start one child and find it in the Temporal UI.",
+        "Chain children five deep.",
+        "Fan out, then write the fan in."
+      ],
+      "events": [
+        [
+          "StartChildWorkflowExecutionInitiated",
+          "PackItemWorkflow, item 1",
+          ""
+        ],
+        [
+          "StartChildWorkflowExecutionInitiated",
+          "PackItemWorkflow, item 2",
+          ""
+        ],
+        [
+          "StartChildWorkflowExecutionInitiated",
+          "PackItemWorkflow, item 3",
+          ""
+        ],
+        [
+          "ChildWorkflowExecutionCompleted",
+          "item 2 boxed",
+          "ok"
+        ],
+        [
+          "ChildWorkflowExecutionCompleted",
+          "item 1 boxed",
+          "ok"
+        ]
+      ],
+      "invite": "https://play.instruqt.com/temporal/invite/gyynuoe3u1sh"
+    },
+    {
+      "slug": "continue-as-new",
+      "workshop": "continue-as-new-subscription",
+      "title": "Continue-As-New",
+      "level": "Advanced",
+      "minutes": 10,
+      "pitch": "A subscription bills every cycle until its Event History grows too long and the Temporal Service ends it. Add Continue-As-New and let it run for as long as the customer stays.",
+      "steps": [
+        "Watch a long-running subscription's Event History grow.",
+        "Add Continue-As-New and carry its state into the next run.",
+        "Watch the chain of runs in the Temporal UI."
+      ],
+      "events": [
+        [
+          "ActivityTaskCompleted",
+          "ChargeSubscription, cycle 16",
+          "ok"
+        ],
+        [
+          "ActivityTaskCompleted",
+          "ChargeSubscription, cycle 17",
+          "ok"
+        ],
+        [
+          "ActivityTaskCompleted",
+          "ChargeSubscription, cycle 18",
+          "ok"
+        ],
+        [
+          "WorkflowExecutionContinuedAsNew",
+          "cycle 19 runs next",
+          "warn"
+        ]
+      ],
+      "invite": "https://play.instruqt.com/temporal/invite/dziwe8cptxda"
+    },
+    {
+      "slug": "heartbeats",
+      "workshop": "heartbeats-shipment",
+      "title": "Activity Heartbeats",
+      "level": "Advanced",
+      "minutes": 10,
+      "pitch": "Crash a Worker halfway through a long job and watch the retry wait, then start over from zero. Add Heartbeats and watch it resume in seconds, from where it left off.",
+      "steps": [
+        "Crash a Worker during a long Activity and time the recovery.",
+        "Record a Heartbeat with progress.",
+        "Crash it again and watch it resume from the last Heartbeat."
+      ],
+      "events": [
+        [
+          "ActivityTaskScheduled",
+          "PackShipment",
+          ""
+        ],
+        [
+          "ActivityTaskTimedOut",
+          "no Heartbeat for 2s",
+          "fail"
+        ],
+        [
+          "ActivityTaskStarted",
+          "PackShipment, attempt 2",
+          "warn"
+        ],
+        [
+          "ActivityTaskCompleted",
+          "resumed at item 16",
+          "ok"
+        ]
+      ],
+      "invite": "https://play.instruqt.com/temporal/invite/pcvx5aqrwygq"
+    },
+    {
+      "slug": "saga",
+      "workshop": "saga-order-fulfillment",
+      "title": "The Saga Pattern",
+      "level": "Advanced",
+      "minutes": 45,
+      "pitch": "An order reserves stock and charges a card, then the courier fails. Watch nobody clean up, then write the undos that refund the card and release the stock, newest first.",
+      "steps": [
+        "Unwind the undos newest first, even when the order is cancelled.",
+        "Register each undo before the step it undoes.",
+        "Make every undo safe to run twice."
+      ],
+      "events": [
+        [
+          "ActivityTaskCompleted",
+          "ReserveInventory",
+          "ok"
+        ],
+        [
+          "ActivityTaskCompleted",
+          "ChargePayment",
+          "ok"
+        ],
+        [
+          "ActivityTaskFailed",
+          "DispatchCourier",
+          "fail"
+        ],
+        [
+          "ActivityTaskCompleted",
+          "RefundPaymentIfCharged",
+          "ok"
+        ],
+        [
+          "ActivityTaskCompleted",
+          "ReleaseInventoryIfReserved",
+          "ok"
+        ]
+      ],
+      "invite": "https://play.instruqt.com/temporal/invite/hy8hpfzptxk8"
+    },
+    {
+      "slug": "nexus",
+      "workshop": "nexus-decouple-monolith",
+      "title": "Nexus: Decouple a Monolith",
+      "level": "Advanced",
+      "minutes": 90,
+      "pitch": "Payments and compliance share one Worker and one Namespace, so a bug in one takes down the other. Split them into two services connected by Nexus, each deployable on its own.",
+      "steps": [
+        "Run the monolith and see what breaks together.",
+        "Write the shared Nexus contract.",
+        "Build the compliance side, then the payments side.",
+        "Crash a Worker and approve a held payment by hand."
+      ],
+      "events": [
+        [
+          "NexusOperationScheduled",
+          "compliance.Check",
+          ""
+        ],
+        [
+          "NexusOperationStarted",
+          "",
+          ""
+        ],
+        [
+          "NexusOperationCompleted",
+          "approved",
+          "ok"
+        ],
+        [
+          "ActivityTaskCompleted",
+          "Settle",
+          "ok"
+        ]
+      ],
+      "invite": "https://play.instruqt.com/temporal/invite/xx12iuebqz2e"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 ---
 slug: the-compliance-side
+id: oz2zruycdpxf
 type: challenge
 title: 3. The compliance side
 teaser: Implement the fast handler, register the Service on a Worker, and read the
@@ -23,25 +24,30 @@ notes:
     The finished code sits in solution/ in the same file tree. Use it if you
     stall.
 tabs:
-- title: Exercise
+- id: n4f1lu0nzpth
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/nexus-decouple-monolith
   port: 8080
-- title: Temporal UI
+- id: u9lotcjf5j52
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
-- title: Terminal
+- id: wstgfr5unkex
+  title: Terminal
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Payments Worker
+- id: yupgbtejhnea
+  title: Payments Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise
-- title: Compliance Worker
+- id: srras0cec857
+  title: Compliance Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/nexus-decouple-monolith/exercise

@@ -1,5 +1,6 @@
 ---
 slug: fix-it-live
+id: bvlhrqgocwvi
 type: challenge
 title: 2. Fix It Live
 teaser: A large transfer hits a bug after the money is withdrawn. Crash the Worker,
@@ -16,26 +17,31 @@ notes:
     Temporal, the transfer waits. You fix the code and restart the Worker, and
     the same transfer carries on from the deposit.
 tabs:
-- title: Exercise
+- id: sma40qubsash
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/first-workflow-money-transfer
   port: 8080
-- title: Worker
+- id: oam05iz0zud1
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/first-workflow-money-transfer/exercise
-- title: Client
+- id: orgvkbmwk3ty
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/first-workflow-money-transfer/exercise
-- title: Temporal UI
+- id: 9rbnchiuzjtq
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: basic
 timelimit: 900
+enhanced_loading: null
 ---
 
 # Goal

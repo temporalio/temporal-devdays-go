@@ -25,7 +25,8 @@ One image for every Go Track (ADR 0004), and the gated Check and Skip helpers
 - The Exercise compiles as shipped. A TODO leaves a working stub (returning a
   zero value, or the bug the Challenge fixes), never a syntax error.
 - Tests are named `TestChallenge<N>_<What>`. Their failure messages are for
-  learners: they name the file, the function and the TODO.
+  learners: they name the file, the function and the TODO, **on one line**.
+  The Check shows only the first line of a failing test's message.
 - Tests run against a real dev server, started from the `temporal` binary on
   `PATH` with `testsuite.StartDevServer`.
 

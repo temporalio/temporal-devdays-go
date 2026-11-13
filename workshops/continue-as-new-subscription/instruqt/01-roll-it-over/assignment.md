@@ -1,5 +1,6 @@
 ---
 slug: roll-it-over
+id: lsd1dspybdkk
 type: challenge
 title: 1. Continue-As-New
 teaser: A subscription bills every cycle until the Temporal Service terminates it.
@@ -29,20 +30,24 @@ notes:
     **Run.** One link in that chain. The next run knows only the input it is
     handed.
 tabs:
-- title: Exercise
+- id: ivuvxzbkottz
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/continue-as-new-subscription
   port: 8080
-- title: Worker
+- id: rsux8apgkf0s
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/continue-as-new-subscription/exercise
-- title: Client
+- id: ksjplyfvukcq
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/continue-as-new-subscription/exercise
-- title: Temporal UI
+- id: lxq4kbnl0ixc
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /

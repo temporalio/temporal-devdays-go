@@ -2,7 +2,7 @@
 // ABOUTME: Fails when an assignment's code snippet has drifted from the Exercise.
 //
 // Assignments show the learner the exact code to change, so they never scroll to
-// find it (ADR 0008). That only helps while the snippet and its line range are
+// find it (ADR 0003). That only helps while the snippet and its line range are
 // true. Mark each snippet in an assignment.md like this:
 //
 //     <!-- snippet: exercise/src/workflows/pack.ts TODO 1 -->

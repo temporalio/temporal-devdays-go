@@ -1,5 +1,6 @@
 ---
 slug: nested-chain
+id: dljkafzrgunh
 type: challenge
 title: 2. A Deeply Nested Chain
 teaser: Children can start children. Go five levels deep, fail the bottom one, and
@@ -15,26 +16,31 @@ notes:
     When the bottom one fails, every parent above it fails too. The real reason
     is five clicks away.
 tabs:
-- title: Exercise
+- id: kzflsvieex8s
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/child-workflows
   port: 8080
-- title: Worker
+- id: d3ixyabctpdl
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/child-workflows/exercise
-- title: Client
+- id: ywepyyatilvd
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/child-workflows/exercise
-- title: Temporal UI
+- id: cqhypfvsm4i0
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: basic
 timelimit: 300
+enhanced_loading: null
 ---
 
 # Goal

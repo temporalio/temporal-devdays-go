@@ -11,7 +11,7 @@ comparison in front of a learner who did not ask for one, and frames Go by what
 it lacks or has. Write the Go design as the design. Sweep before publishing:
 
 ```bash
-grep -rn "Java\|Kotlin\|Python\|TypeScript\|\.NET" workshops/<slug>/ decks/ --include="*.go" --include="*.md"
+grep -rni "java\|kotlin\|python\|typescript\|\.net\b" workshops/<slug>/ decks/ --include="*.go" --include="*.md"
 ```
 
 ## Go-specific rules

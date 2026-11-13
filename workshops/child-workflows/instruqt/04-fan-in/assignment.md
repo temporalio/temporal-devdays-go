@@ -1,5 +1,6 @@
 ---
 slug: fan-in
+id: ubs9pxaqnrzu
 type: challenge
 title: 4. Fan In
 teaser: Wait for every child and collect the results. Five 3-second children, done
@@ -13,26 +14,31 @@ notes:
     on all of them and the parent stays open until every child is done, while
     they all run at the same time.
 tabs:
-- title: Exercise
+- id: ktoyb5snzkx9
+  title: Exercise
   type: service
   hostname: workshop
   path: /?folder=/root/workshop/child-workflows
   port: 8080
-- title: Worker
+- id: kp5czbq68yf3
+  title: Worker
   type: terminal
   hostname: workshop
   workdir: /root/workshop/child-workflows/exercise
-- title: Client
+- id: fhduhffzstjd
+  title: Client
   type: terminal
   hostname: workshop
   workdir: /root/workshop/child-workflows/exercise
-- title: Temporal UI
+- id: pan08smhrcfn
+  title: Temporal UI
   type: service
   hostname: workshop
   path: /
   port: 8233
 difficulty: basic
 timelimit: 600
+enhanced_loading: null
 ---
 
 # Goal
