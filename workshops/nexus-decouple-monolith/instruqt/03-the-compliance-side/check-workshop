@@ -1,0 +1,6 @@
+#!/bin/bash
+# ABOUTME: Challenge 03 Check (ADR 0003): the Exercise compiles, and the
+# TestChallenge1_ to TestChallenge3_ tests pass. They run the Compliance Worker
+# against the test's own dev server and call both Operations through an
+# Endpoint, so a missing registration (TODO 3) or handler (TODO 2) fails here.
+exec workshop-check /root/workshop/nexus-decouple-monolith/exercise 3

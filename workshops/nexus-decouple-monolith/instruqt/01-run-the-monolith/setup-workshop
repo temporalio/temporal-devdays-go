@@ -1,0 +1,9 @@
+#!/bin/bash
+# ABOUTME: Challenge 01 setup. Clears stragglers so the monolith run is clean.
+# The Exercise accumulates the learner's edits across challenges, so nothing in
+# it is touched here.
+set -euxo pipefail
+
+pkill -f "payments-worker"   || true
+pkill -f "compliance-worker" || true
+true

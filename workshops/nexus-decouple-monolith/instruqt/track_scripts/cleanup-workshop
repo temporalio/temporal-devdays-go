@@ -1,0 +1,14 @@
+#!/bin/bash
+# ABOUTME: Track-level cleanup. Runs once when the track is torn down.
+# One pkill per pattern: alternation does not work on macOS, where these
+# scripts are authored.
+#
+# `go run ./payments-worker` forks a child binary named payments-worker, so
+# the pattern matches both the go parent and the child that holds the Worker.
+set -euo pipefail
+
+pkill -f "payments-worker"   || true
+pkill -f "compliance-worker" || true
+pkill -f "review-starter"    || true
+pkill -f "go run ./starter"  || true
+pkill -f "temporal server"   || true

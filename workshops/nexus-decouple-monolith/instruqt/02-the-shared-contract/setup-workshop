@@ -1,0 +1,8 @@
+#!/bin/bash
+# ABOUTME: Challenge 02 setup. Clears the monolith Worker from challenge 01.
+# The Exercise accumulates edits across challenges, so nothing is wiped.
+set -euxo pipefail
+
+pkill -f "payments-worker"   || true
+pkill -f "compliance-worker" || true
+true

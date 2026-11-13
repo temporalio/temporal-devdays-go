@@ -1,0 +1,46 @@
+#!/bin/bash
+# ABOUTME: Check for Challenge 1 of the Nexus Track (observe-only). Passes when the
+# lab's dev server holds the three monolith payments the learner was asked to run,
+# finished, with the results the monolith produces.
+#
+#   nexus-check-monolith
+#
+# Reads the lab's dev server at $TEMPORAL_ADDRESS (default 127.0.0.1:7233) with
+# the temporal CLI and jq. Installed into /usr/local/bin by the Sandbox Image.
+set -uo pipefail
+
+ADDR="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
+NS=payments-namespace
+
+fail() {
+    if command -v fail-message >/dev/null 2>&1; then
+        fail-message "$1"
+    else
+        echo "FAIL: $1" >&2
+    fi
+    exit 1
+}
+
+# <transaction> <expected PaymentResult.status>
+for row in "TXN-A COMPLETED" "TXN-B COMPLETED" "TXN-C DECLINED_COMPLIANCE"; do
+    read -r TXN WANT <<<"$row"
+    WID="payment-$TXN"
+    DESC="$(temporal workflow describe --address "$ADDR" --namespace "$NS" \
+        --workflow-id "$WID" --output json 2>/dev/null)" \
+        || fail "There is no $WID Workflow in $NS yet. Start the Payments Worker with 'go run ./payments-worker' in the Payments Worker tab, then run 'go run ./starter' in the Terminal tab."
+
+    STATUS="$(jq -r '.workflowExecutionInfo.status // ""' <<<"$DESC")"
+    case "$STATUS" in
+        WORKFLOW_EXECUTION_STATUS_COMPLETED) ;;
+        WORKFLOW_EXECUTION_STATUS_RUNNING)
+            fail "$WID is still Running. Is the Payments Worker running? Wait for the starter to print its results, then click Check again." ;;
+        *)
+            fail "$WID ended as ${STATUS#WORKFLOW_EXECUTION_STATUS_}, not Completed. Run 'go run ./starter' again with the Payments Worker running." ;;
+    esac
+
+    GOT="$(jq -r '.result.status // ""' <<<"$DESC")"
+    [ "$GOT" = "$WANT" ] \
+        || fail "$WID finished as $GOT, but the monolith finishes it as $WANT. Challenge 1 runs the Exercise as shipped: undo any edits, restart the Payments Worker, and run 'go run ./starter' again."
+done
+
+echo "PASS: payment-TXN-A, payment-TXN-B and payment-TXN-C all ran through the monolith."

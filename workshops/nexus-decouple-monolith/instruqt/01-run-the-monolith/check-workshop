@@ -1,0 +1,4 @@
+#!/bin/bash
+# ABOUTME: Challenge 01 Check (observe-only, ADR 0003). Passes once the lab's dev
+# server holds payment-TXN-A, -B and -C, finished with the monolith's results.
+exec nexus-check-monolith

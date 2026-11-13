@@ -1,0 +1,78 @@
+#!/bin/bash
+# ABOUTME: Check for Challenge 5 of the Nexus Track (observe-only). Passes when the
+# lab's dev server shows the outage and the review the learner was asked to run:
+# payments that waited out a Compliance Worker outage, and TXN-B released by a
+# review sent through Nexus.
+#
+#   nexus-check-outage
+#
+# Reads the lab's dev server at $TEMPORAL_ADDRESS (default 127.0.0.1:7233) with
+# the temporal CLI and jq. Installed into /usr/local/bin by the Sandbox Image.
+set -uo pipefail
+
+ADDR="${TEMPORAL_ADDRESS:-127.0.0.1:7233}"
+NS=payments-namespace
+# A handler that is up starts an Operation in milliseconds. One that waited this
+# long was not there when the Operation was scheduled.
+OUTAGE_SECONDS=5
+
+fail() {
+    if command -v fail-message >/dev/null 2>&1; then
+        fail-message "$1"
+    else
+        echo "FAIL: $1" >&2
+    fi
+    exit 1
+}
+
+describe() {
+    temporal workflow describe --address "$ADDR" --namespace "$NS" \
+        --workflow-id "$1" --output json 2>/dev/null
+}
+
+# Seconds between Nexus Operation Scheduled and Nexus Operation Started, or
+# nothing if the Operation never started.
+start_delay() {
+    temporal workflow show --address "$ADDR" --namespace "$NS" \
+        --workflow-id "$1" --output json 2>/dev/null | jq -r '
+      def secs: sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601;
+      [.events[] | select(.eventType == "EVENT_TYPE_NEXUS_OPERATION_SCHEDULED") | .eventTime | secs] as $s
+      | [.events[] | select(.eventType == "EVENT_TYPE_NEXUS_OPERATION_STARTED") | .eventTime | secs] as $t
+      | if ($s | length) > 0 and ($t | length) > 0 then ($t[0] - $s[0]) else empty end'
+}
+
+OUTAGE=0
+for TXN in TXN-A TXN-B TXN-C; do
+    WID="payment-$TXN"
+    DESC="$(describe "$WID")" \
+        || fail "There is no $WID Workflow in $NS. Run 'go run ./starter' in the Terminal tab while the Compliance Worker is stopped."
+    STATUS="$(jq -r '.workflowExecutionInfo.status // ""' <<<"$DESC")"
+    if [ "$STATUS" = "WORKFLOW_EXECUTION_STATUS_RUNNING" ]; then
+        if [ "$TXN" = "TXN-B" ]; then
+            fail "payment-TXN-B is still Running, parked for review. Once payment-TXN-A shows Completed, run 'go run ./review-starter' in the Terminal tab."
+        fi
+        fail "$WID is still Running. Start the Compliance Worker with 'go run ./compliance-worker' and give the pending Nexus Operation up to a minute to be picked up."
+    fi
+    [ "$STATUS" = "WORKFLOW_EXECUTION_STATUS_COMPLETED" ] \
+        || fail "$WID ended as ${STATUS#WORKFLOW_EXECUTION_STATUS_}, not Completed. Run 'go run ./starter' again with the Payments Worker running."
+
+    DELAY="$(start_delay "$WID")"
+    [ -z "$DELAY" ] \
+        && fail "$WID has no Nexus Operation Started event, so it did not call Compliance through Nexus. Finish Challenge 4 first, restart both Workers, and run the starter again."
+    [ "${DELAY%.*}" -ge "$OUTAGE_SECONDS" ] && OUTAGE=1
+done
+
+[ "$OUTAGE" -eq 1 ] \
+    || fail "Every payment reached Compliance at once, so none of them waited out an outage. Stop the Compliance Worker with Ctrl+C, run 'go run ./starter', then start the Compliance Worker again."
+
+RESULT="$(describe payment-TXN-B | jq -r '.result.explanation // ""')"
+case "$RESULT" in
+    "No reviewer responded"*)
+        fail "payment-TXN-B gave up waiting: nobody reviewed it within 8 minutes. Run 'go run ./starter' again, and run 'go run ./review-starter' once payment-TXN-A shows Completed." ;;
+esac
+
+REVIEW="$(describe review-TXN-B | jq -r '.workflowExecutionInfo.status // ""')"
+[ "$REVIEW" = "WORKFLOW_EXECUTION_STATUS_COMPLETED" ] \
+    || fail "There is no completed review-TXN-B Workflow. Run 'go run ./review-starter' in the Terminal tab to approve TXN-B through Nexus."
+
+echo "PASS: the payments waited out the outage, and TXN-B was released by a review sent through Nexus."

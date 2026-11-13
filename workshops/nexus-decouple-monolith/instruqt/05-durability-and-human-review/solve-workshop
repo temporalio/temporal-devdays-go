@@ -1,0 +1,67 @@
+#!/bin/bash
+# ABOUTME: Challenge 05 solve. Runs the outage demo end to end against the
+# learner's finished Exercise: Payments up, Compliance down, send payments, bring
+# Compliance back, then review TXN-B. Edits no code: challenge 04's Check only
+# passes once every TODO is done.
+set -euxo pipefail
+
+ADDR=127.0.0.1:7233
+cd /root/workshop/nexus-decouple-monolith/exercise
+
+pkill -f "compliance-worker" || true
+pkill -f "payments-worker"   || true
+sleep 1
+
+# Payments up, Compliance deliberately down.
+nohup go run ./payments-worker > /tmp/payments-worker.log 2>&1 &
+for i in $(seq 1 120); do
+    grep -q "Payments Worker started" /tmp/payments-worker.log 2>/dev/null && break
+    sleep 1
+done
+grep -q "Payments Worker started" /tmp/payments-worker.log
+
+# The Operations get scheduled with no handler polling. The caller waits, and
+# the starter reports all three as still running after 25 seconds.
+go run ./starter > /tmp/starter.log 2>&1
+cat /tmp/starter.log
+
+# Bring Compliance back. The pending Operations get picked up.
+nohup go run ./compliance-worker > /tmp/compliance-worker.log 2>&1 &
+
+# Wait for the handler Workflow to exist before reviewing it. After an outage
+# the Nexus Operation retries with backoff, so compliance-TXN-B can appear up
+# to a minute after the Worker is back. Reviewing too early hits the sync
+# Operation's 10-second budget.
+for i in $(seq 1 180); do
+    STATE=$(temporal workflow describe --address "$ADDR" --namespace compliance-namespace \
+        --workflow-id compliance-TXN-B --output json 2>/dev/null \
+        | jq -r '.workflowExecutionInfo.status // empty' 2>/dev/null || true)
+    [ "$STATE" = "WORKFLOW_EXECUTION_STATUS_RUNNING" ] && break
+    sleep 1
+done
+
+# The review Update is rejected until the automated check has produced its
+# MEDIUM verdict, so retry rather than assume the first attempt lands.
+REVIEWED=0
+for attempt in 1 2 3 4 5; do
+    if go run ./review-starter > /tmp/review.log 2>&1; then
+        REVIEWED=1
+        break
+    fi
+    sleep 5
+done
+cat /tmp/review.log
+[ "$REVIEWED" -eq 1 ]
+
+# Every payment must have finished before the Check reads them.
+for TXN in TXN-A TXN-B TXN-C; do
+    for i in $(seq 1 60); do
+        STATE=$(temporal workflow describe --address "$ADDR" --namespace payments-namespace \
+            --workflow-id "payment-$TXN" --output json 2>/dev/null \
+            | jq -r '.workflowExecutionInfo.status // empty' 2>/dev/null || true)
+        [ "$STATE" = "WORKFLOW_EXECUTION_STATUS_COMPLETED" ] && break
+        sleep 1
+    done
+done
+
+nexus-check-outage

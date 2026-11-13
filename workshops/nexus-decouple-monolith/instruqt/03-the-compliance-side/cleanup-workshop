@@ -1,0 +1,8 @@
+#!/bin/bash
+# ABOUTME: Challenge 03 cleanup. Clean slate: challenge 04 starts both Workers
+# itself rather than depending on a process surviving the transition.
+set -euo pipefail
+
+pkill -f "compliance-worker" || true
+pkill -f "payments-worker"   || true
+sleep 1

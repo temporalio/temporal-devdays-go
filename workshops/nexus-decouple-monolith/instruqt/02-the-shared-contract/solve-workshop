@@ -1,0 +1,10 @@
+#!/bin/bash
+# ABOUTME: Challenge 02 Skip. Splices TODO 1 in from the Solution and nothing
+# else, keeping the learner's file as .bak.
+set -euxo pipefail
+
+WS=/root/workshop/nexus-decouple-monolith
+workshop-solve "$WS/exercise" "$WS/solution" shared/service.go "TODO 1"
+
+cd "$WS/exercise"
+go vet ./...

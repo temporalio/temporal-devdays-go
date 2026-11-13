@@ -1,0 +1,7 @@
+# Coding Challenges and the TODOs their Check gates (scripts/test-checks.sh).
+# <challenge> <TAB> <file> <TAB> <TODO label>[,<TODO label>...]
+2	shared/service.go	TODO 1
+3	compliance/handler.go	TODO 2
+3	compliance/worker.go	TODO 3
+4	payments/workflows.go	TODO 4a,TODO 4b,TODO 4c
+4	payments/worker.go	TODO 5a,TODO 5b

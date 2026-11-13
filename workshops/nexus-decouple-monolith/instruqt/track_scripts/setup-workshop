@@ -1,0 +1,110 @@
+#!/bin/bash
+# ABOUTME: Track-level setup. Runs once when the attendee enters the track.
+# Starts the editor, starts the dev server, then creates both Namespaces and the
+# Nexus Endpoint between them.
+#
+# Ordering matters. The editor starts BEFORE any Temporal work and is never
+# gated on it: a slow Temporal start must not take the Exercise tab down too.
+#
+# The Exercise and Solution are baked into the Sandbox Image at
+# /root/workshop/nexus-decouple-monolith (ADR 0004), writable, so nothing is
+# staged here. Skip splices single TODOs in from the Solution and never
+# overwrites a whole tree, so no pristine copy is kept either.
+set -uo pipefail
+
+WS=/root/workshop/nexus-decouple-monolith
+ADDR=127.0.0.1:7233
+
+# 1. Wait for Instruqt host bootstrap.
+until [ -f /opt/instruqt/bootstrap/host-bootstrap-completed ]; do
+    sleep 1
+done
+
+# 2. Start ONE code-server, rooted at the Workshop so both exercise/ and
+#    solution/ are in the file tree. One editor tab, first in every challenge's
+#    tab list, so its iframe has real dimensions when it boots. Port 8080, not
+#    8443: Instruqt's proxy could not reach code-server on 8443. The user data
+#    dir is the one the Sandbox Image seeds with settings (trust off, autosave).
+if ! curl -sf -o /dev/null "http://127.0.0.1:8080/" 2>/dev/null; then
+    nohup code-server \
+        --bind-addr "0.0.0.0:8080" \
+        --auth none \
+        --disable-telemetry \
+        --disable-update-check \
+        --user-data-dir /root/.cs-workshop \
+        "$WS" > /tmp/code-server-8080.log 2>&1 &
+    disown || true
+fi
+
+# 3. Start the Temporal dev server. --ip 0.0.0.0 so the Temporal UI tab can
+#    reach it on 8233.
+if ! curl -sf http://127.0.0.1:8233 >/dev/null 2>&1; then
+    nohup temporal server start-dev \
+        --ip 0.0.0.0 \
+        --port 7233 \
+        --ui-port 8233 \
+        --db-filename /root/temporal.db \
+        --log-level warn \
+        > /tmp/temporal-server.log 2>&1 &
+    disown || true
+fi
+
+# 4. Wait for Temporal health. Warn loudly on failure, but do not exit: the
+#    editor is already up, and the rest of setup is idempotent.
+TEMPORAL_UP=0
+for i in $(seq 1 120); do
+    if temporal operator cluster health --address "$ADDR" >/dev/null 2>&1; then
+        TEMPORAL_UP=1
+        break
+    fi
+    sleep 1
+done
+if [ "$TEMPORAL_UP" -ne 1 ]; then
+    echo "==> WARNING: Temporal dev server did not become healthy in 120s."
+    tail -30 /tmp/temporal-server.log 2>/dev/null
+fi
+
+# 5. One Namespace per team, which is the whole point. Then the Nexus Endpoint
+#    that routes from Payments to Compliance (ADR 0004: created at runtime, not
+#    baked into the image). Challenge 3 reads it with `endpoint list`.
+temporal operator namespace create --namespace payments-namespace \
+    --address "$ADDR" >/dev/null 2>&1 || true
+temporal operator namespace create --namespace compliance-namespace \
+    --address "$ADDR" >/dev/null 2>&1 || true
+
+for i in $(seq 1 30); do
+    if temporal operator namespace describe --namespace payments-namespace \
+         --address "$ADDR" >/dev/null 2>&1 \
+       && temporal operator namespace describe --namespace compliance-namespace \
+         --address "$ADDR" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+
+temporal operator nexus endpoint create \
+    --name compliance-endpoint \
+    --target-namespace compliance-namespace \
+    --target-task-queue compliance-risk \
+    --address "$ADDR" >/dev/null 2>&1 || true
+temporal operator nexus endpoint list --address "$ADDR" 2>/dev/null | grep -q compliance-endpoint \
+    || echo "==> WARNING: the compliance-endpoint Nexus Endpoint was not created."
+
+# 6. Wait for the editor to be genuinely ready. Never fatal. Bare "/" 302s, and
+#    curl -sf treats a 3xx as success, so poll the exact URL the tab opens plus
+#    the log line code-server writes once the workbench is up.
+code_server_ready() {
+    [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+        "http://127.0.0.1:8080/?folder=${WS}" 2>/dev/null)" = "200" ] \
+        && grep -q "Extension host agent started" /tmp/code-server-8080.log 2>/dev/null
+}
+
+for i in $(seq 1 90); do
+    code_server_ready && break
+    sleep 1
+done
+
+code_server_ready \
+    || { echo "==> WARNING: code-server 8080 not ready."; tail -20 /tmp/code-server-8080.log 2>/dev/null; }
+
+echo "==> Track setup complete."
