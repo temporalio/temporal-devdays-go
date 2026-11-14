@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-labelledby="title desc">
+  <title id="title">DevDays Go</title>
+  <desc id="desc">A steaming cup of coffee next to the words DevDays Go.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B0B1A"/>
+      <stop offset="0.55" stop-color="#15123A"/>
+      <stop offset="1" stop-color="#241552"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7B61FF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#7B61FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2DD4BF" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="go" gradientUnits="userSpaceOnUse" x1="470" y1="0" x2="600" y2="0">
+      <stop offset="0" stop-color="#A78BFA"/>
+      <stop offset="0.5" stop-color="#F472B6"/>
+      <stop offset="1" stop-color="#FDBA74"/>
+    </linearGradient>
+    <linearGradient id="cup" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DCD6F7"/>
+    </linearGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#FFFFFF" fill-opacity="0.07"/>
+    </pattern>
+    <clipPath id="frame"><rect width="1200" height="340" rx="28"/></clipPath>
+  </defs>
+
+  <style>
+    .steam   { animation: steam 3s ease-in-out infinite; opacity: 0; }
+    .steam.s2 { animation-delay: -1s; }
+    .steam.s3 { animation-delay: -2s; }
+    .spark   { transform-box: fill-box; transform-origin: center; animation: twinkle 2.4s ease-in-out infinite; }
+    .spark.t2 { animation-delay: -0.8s; }
+    .spark.t3 { animation-delay: -1.6s; }
+    .drift   { animation: drift 14s ease-in-out infinite alternate; }
+
+    @keyframes steam   { 0% { opacity: 0; transform: translateY(8px); } 30% { opacity: .85; } 100% { opacity: 0; transform: translateY(-26px); } }
+    @keyframes twinkle { 0%, 100% { transform: scale(.4); opacity: .2; } 50% { transform: scale(1); opacity: 1; } }
+    @keyframes drift   { from { transform: translate(0, 0); } to { transform: translate(-40px, 18px); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; }
+      .steam { opacity: .7; }
+    }
+  </style>
+
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="340" fill="url(#bg)"/>
+    <rect width="1200" height="340" fill="url(#dots)"/>
+    <g class="drift">
+      <circle cx="930" cy="150" r="260" fill="url(#glowA)"/>
+      <circle cx="210" cy="330" r="220" fill="url(#glowB)"/>
+    </g>
+    <!-- orbit lines -->
+    <ellipse cx="930" cy="190" rx="250" ry="70" fill="none" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="1.5" transform="rotate(-8 930 190)"/>
+    <ellipse cx="930" cy="190" rx="190" ry="48" fill="none" stroke="#A78BFA" stroke-opacity="0.12" stroke-width="1.5" stroke-dasharray="4 8" transform="rotate(-8 930 190)"/>
+  </g>
+  <rect x="0.75" y="0.75" width="1198.5" height="338.5" rx="27.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1.5"/>
+
+  <!-- Wordmark -->
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Inter, Helvetica, Arial, sans-serif">
+    <text x="72" y="98" fill="#A5B4FC" font-size="17" font-weight="600" letter-spacing="4">TEMPORAL · HANDS-ON WORKSHOPS</text>
+    <text x="68" y="196" fill="#FFFFFF" font-size="96" font-weight="800" letter-spacing="-3">DevDays <tspan fill="url(#go)">Go</tspan></text>
+    <text x="72" y="240" fill="#C7C9E8" font-size="22" font-weight="400">Durable execution, one Challenge at a time.</text>
+    <g font-size="14" font-weight="600" fill="#E0E7FF">
+      <rect x="72" y="266" width="66" height="30" rx="15" fill="#FFFFFF" fill-opacity="0.08" stroke="#A78BFA" stroke-opacity="0.45"/>
+      <text x="105" y="286" text-anchor="middle">Saga</text>
+      <rect x="148" y="266" width="138" height="30" rx="15" fill="#FFFFFF" fill-opacity="0.08" stroke="#A78BFA" stroke-opacity="0.45"/>
+      <text x="217" y="286" text-anchor="middle">Child Workflows</text>
+      <rect x="296" y="266" width="154" height="30" rx="15" fill="#FFFFFF" fill-opacity="0.08" stroke="#A78BFA" stroke-opacity="0.45"/>
+      <text x="373" y="286" text-anchor="middle">Continue-As-New</text>
+      <rect x="460" y="266" width="106" height="30" rx="15" fill="#FFFFFF" fill-opacity="0.08" stroke="#A78BFA" stroke-opacity="0.45"/>
+      <text x="513" y="286" text-anchor="middle">Heartbeats</text>
+      <rect x="576" y="266" width="74" height="30" rx="15" fill="#FFFFFF" fill-opacity="0.08" stroke="#A78BFA" stroke-opacity="0.45"/>
+      <text x="613" y="286" text-anchor="middle">Nexus</text>
+    </g>
+  </g>
+
+  <!-- Sparkles -->
+  <g fill="#FDE68A">
+    <path class="spark" d="M760 70 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4z"/>
+    <path class="spark t2" d="M1110 92 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#C4B5FD"/>
+    <path class="spark t3" d="M1080 268 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z"/>
+    <path class="spark t2" d="M700 220 l2.5 6 6 2.5 -6 2.5 -2.5 6 -2.5 -6 -6 -2.5 6 -2.5z" fill="#99F6E4"/>
+  </g>
+
+  <!-- Ground shadow -->
+  <ellipse cx="930" cy="300" rx="72" ry="10" fill="#000000" opacity=".4"/>
+
+  <!-- Coffee cup, centred in the glow -->
+  <g transform="translate(930 200) scale(1.6) translate(-1064 -228)">
+    <path class="steam"    d="M1050 196 c-8 -10 8 -16 0 -28" fill="none" stroke="#E9E5FF" stroke-width="4" stroke-linecap="round"/>
+    <path class="steam s2" d="M1064 194 c-8 -10 8 -16 0 -28" fill="none" stroke="#E9E5FF" stroke-width="4" stroke-linecap="round"/>
+    <path class="steam s3" d="M1078 196 c-8 -10 8 -16 0 -28" fill="none" stroke="#E9E5FF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M1090 228 h8 a14 14 0 0 1 0 28 h-10" fill="none" stroke="#DCD6F7" stroke-width="7"/>
+    <path d="M1030 210 h68 l-6 70 a10 10 0 0 1 -10 9 h-36 a10 10 0 0 1 -10 -9z" fill="url(#cup)"/>
+    <rect x="1026" y="204" width="76" height="10" rx="5" fill="#FFFFFF"/>
+    <path d="M1040 244 q24 -12 48 0" fill="none" stroke="#7B61FF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M1044 258 q20 -9 40 0" fill="none" stroke="#F472B6" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+</svg>
