@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/header.svg" alt="DevDays Go: a steaming cup of coffee" width="100%">
+</p>
+
 # temporal-devdays-go
 
 Every Temporal DevDays Workshop in Go: what exists, where each piece lives, and

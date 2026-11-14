@@ -10,6 +10,9 @@ Deck, Sandbox Image, Social Invite). Decisions are in `docs/adr/`.
 - One Sandbox Image for every Track (ADR 0004).
 - Instruqt rules: `INSTRUQT.md`.
 - Every Port gets a cost record: `docs/ports/README.md`.
+- The README opens with the DevDays banner, `assets/header.svg`: the same
+  coffee-cup SVG every DevDays repo uses, with only the language word (and its
+  gradient's x range) changed. Do not remove it or restyle it per repo.
 
 Prove a Workshop before calling it done:
 
