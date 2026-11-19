@@ -24,14 +24,21 @@ func PackShipment(ctx context.Context, input ShipmentInput) (ShipmentResult, err
 	packed := 0
 	// TODO 1c end
 
-	say("packing %s, attempt %d, starting at item %d", input.ShipmentID, attempt, packed)
+	// The checkpoint this attempt starts from, kept in the result so the Event
+	// History records it.
+	resumedFrom := packed
+	if resumedFrom == 0 {
+		say("packing %s, attempt %d: no Heartbeat recorded, starting at item 1 of %d", input.ShipmentID, attempt, input.ItemCount)
+	} else {
+		say("packing %s, attempt %d: last recorded Heartbeat says %d packed, resuming at item %d of %d", input.ShipmentID, attempt, resumedFrom, resumedFrom+1, input.ItemCount)
+	}
 
 	for item := packed; item < input.ItemCount; item++ {
 		select {
 		case <-ctx.Done():
 			// Cancellation reaches a running Activity through its Heartbeat:
 			// the SDK cancels ctx. Stop and let the error out.
-			say("interrupted at item %d", packed)
+			say("interrupted after %d items packed", packed)
 			return ShipmentResult{}, ctx.Err()
 		case <-time.After(TimePerItem):
 		}
@@ -42,5 +49,5 @@ func PackShipment(ctx context.Context, input ShipmentInput) (ShipmentResult, err
 		// TODO 1b end
 	}
 
-	return ShipmentResult{ShipmentID: input.ShipmentID, Packed: packed, FinishedOnAttempt: attempt}, nil
+	return ShipmentResult{ShipmentID: input.ShipmentID, Packed: packed, FinishedOnAttempt: attempt, ResumedFrom: resumedFrom}, nil
 }

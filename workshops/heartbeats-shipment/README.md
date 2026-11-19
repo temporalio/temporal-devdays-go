@@ -9,11 +9,48 @@ each, under a 20 s start-to-close timeout, with up to 10 attempts. The learner
 crashes its Worker with Ctrl+C partway through, twice:
 
 - **Without Heartbeats:** the retry waits out the attempt's timeout and starts
-  again at item 0.
+  again at item 1 (`no Heartbeat recorded, starting at item 1 of 40`).
 - **With Heartbeats:** the retry starts as soon as a replacement Worker is up,
   about 2 s after the kill (the Heartbeat Timeout), and resumes from the last
-  Heartbeat, up to a few items behind the last one printed: Heartbeats are
-  throttled to one per 0.8 × the Heartbeat Timeout (1.6 s).
+  recorded Heartbeat.
+
+## The checkpoint is a few items behind the last one printed
+
+Learners report "I stopped the Worker near item 10, but the last Heartbeat
+showed about 8 packed." That is the SDK, not a defect, and the lab now says so
+where it happens. Measured on a local dev server, SIGKILL right after the
+Worker logged `packed item 10 of 40`, three runs before and three after the
+change, every time:
+
+- the Server's pending Activity (`temporal workflow describe -o json`,
+  `pendingActivities[].heartbeatDetails`, the UI's **Heartbeat Details**) held
+  `[6]`, on attempt 2, Scheduled, last failure `activity Heartbeat timeout`;
+- the retry logged `last recorded Heartbeat says 6 packed, resuming at item 7
+  of 40`;
+- the Client printed `Attempt 2 resumed at item 7: the last recorded Heartbeat
+  said 6 packed.`, and the `ActivityTaskCompleted` result recorded
+  `"FinishedOnAttempt":2,"ResumedFrom":6`.
+
+The SDK throttles Heartbeats: it sends at most one every 0.8 × the Heartbeat
+Timeout (2 s → 1.6 s, about every 5 items at 0.3 s each) and keeps only the
+newest details between sends. A killed process sends nothing more, so items 7
+to 10 never reached Temporal and are packed twice.
+
+Three things made that read as a bug, and are fixed:
+
+1. The resume log printed a packed count as "starting at item 6" while the
+   per-item lines are 1-based, so it read as if item 6 would be repacked. The
+   start log now says `no Heartbeat recorded, starting at item 1 of 40` or
+   `last recorded Heartbeat says K packed, resuming at item K+1 of 40`.
+2. The assignment had learners restart the Worker at once and explained
+   throttling only at the end. It now has them stop, read the pending
+   Activity's Heartbeat Details in the UI, and explains the throttle there.
+3. Only console text named the checkpoint. The Event History does not hold
+   Heartbeat details (attempt 2's `ActivityTaskStarted` last failure is a
+   Heartbeat timeout with no details), so `ShipmentResult` now carries
+   `ResumedFrom`, and the `ActivityTaskCompleted` result records it. While the
+   retry is pending, the authoritative checkpoint is the pending Activity's
+   Heartbeat Details.
 
 | # | Challenge | Change | Check passes when |
 |---|---|---|---|
@@ -90,8 +127,8 @@ the untouched Exercise.
   `1 2 3`.
 - **1c** registers a stand-in whose attempt 1 Heartbeats `16` and fails, and
   whose attempt 2 is the real `PackShipment` on 18 items: it expects the first
-  Heartbeat of attempt 2 to be 17 and all 18 items packed. A second test
-  expects a first attempt to start at 0. Calling `GetHeartbeatDetails` without
+  Heartbeat of attempt 2 to be 17, all 18 items packed, and `ResumedFrom` 16.
+  A second test expects a first attempt to start with 0 packed. Calling `GetHeartbeatDetails` without
   `HasHeartbeatDetails` returns `temporal.ErrNoData` on a first attempt, and
   that is reported against 1c by name.
 
