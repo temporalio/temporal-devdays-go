@@ -14,7 +14,7 @@ description: |-
   One Challenge, about ten minutes:
 
   1. Kill a Worker 10 items into a 40 item job. Watch the retry wait out the
-     whole timeout, then start again at item 0.
+     whole timeout, then start again at item 1.
   2. Add a Heartbeat Timeout, a Heartbeat per item, and a resume point.
   3. Kill it again. Watch the retry start in seconds, where it left off.
 

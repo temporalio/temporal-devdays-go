@@ -235,12 +235,15 @@ func TestChallenge1_RetryResumesFromLastHeartbeat(t *testing.T) {
 	if result.Packed != 18 {
 		t.Fatalf("Expected all 18 items packed and got %d. Check TODO 1c in activities.go, PackShipment.", result.Packed)
 	}
+	if result.ResumedFrom != 16 {
+		t.Fatalf("The last attempt Heartbeated 16 packed items, and the retry's result says it resumed from %d. TODO 1c in activities.go, PackShipment: set packed from activity.GetHeartbeatDetails(ctx, &packed) between the TODO 1c markers, so the code after them records it as ResumedFrom.", result.ResumedFrom)
+	}
 }
 
 func TestChallenge1_FirstAttemptStartsAtZero(t *testing.T) {
 	result, rec := packOrFail(t, PackShipment, 3, "on a first attempt")
 
 	if result.Packed != 3 || fmt.Sprint(rec.fromAttempt(1)) != "[1 2 3]" {
-		t.Fatal("A first attempt has no Heartbeat to resume from and must start at item 0. TODO 1c in activities.go, PackShipment: read the details only when activity.HasHeartbeatDetails(ctx) is true, and keep 0 otherwise.")
+		t.Fatal("A first attempt has no Heartbeat to resume from and must start at item 1, with 0 packed. TODO 1c in activities.go, PackShipment: read the details only when activity.HasHeartbeatDetails(ctx) is true, and keep 0 otherwise.")
 	}
 }

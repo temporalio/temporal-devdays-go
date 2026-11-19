@@ -23,8 +23,12 @@ type ShipmentInput struct {
 
 // ShipmentResult is what packing produced. FinishedOnAttempt is the Attempt
 // that finished the job: greater than 1 means a crash was survived.
+// ResumedFrom is the packed count that Attempt read from the last recorded
+// Heartbeat, 0 if there was none. It is part of the result, so the Event
+// History records the checkpoint the finishing attempt used.
 type ShipmentResult struct {
 	ShipmentID        string
 	Packed            int
 	FinishedOnAttempt int32
+	ResumedFrom       int
 }

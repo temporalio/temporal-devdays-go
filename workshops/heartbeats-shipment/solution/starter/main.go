@@ -66,6 +66,11 @@ func main() {
 	}
 	fmt.Printf("\nPacked %d items, finished on attempt %d.\n", result.Packed, result.FinishedOnAttempt)
 	if result.FinishedOnAttempt > 1 {
-		fmt.Println("An earlier attempt was interrupted. This one finished the job.")
+		if result.ResumedFrom > 0 {
+			fmt.Printf("An earlier attempt was interrupted. Attempt %d resumed at item %d: the last recorded Heartbeat said %d packed.\n",
+				result.FinishedOnAttempt, result.ResumedFrom+1, result.ResumedFrom)
+		} else {
+			fmt.Printf("An earlier attempt was interrupted. No Heartbeat was recorded, so attempt %d started again at item 1.\n", result.FinishedOnAttempt)
+		}
 	}
 }
