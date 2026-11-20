@@ -14,6 +14,20 @@ import (
 // on the way out.
 type compensation func(ctx workflow.Context) error
 
+// undoActivityOptions are for the undos, not the forward steps. A forward step
+// that keeps failing should give up quickly so the order can unwind. An undo
+// that gives up strands the stock or the money, so it keeps retrying, with
+// backoff, for up to five minutes.
+var undoActivityOptions = workflow.ActivityOptions{
+	StartToCloseTimeout:    10 * time.Second,
+	ScheduleToCloseTimeout: 5 * time.Minute,
+	RetryPolicy: &temporal.RetryPolicy{
+		InitialInterval:    500 * time.Millisecond,
+		BackoffCoefficient: 2,
+		MaximumInterval:    10 * time.Second,
+	},
+}
+
 // OrderFulfillmentWorkflow reserves the stock, charges the card and books the
 // courier. When any step fails, it undoes the steps that ran, newest first, and
 // still fails: compensating is not succeeding.
@@ -38,13 +52,17 @@ func OrderFulfillmentWorkflow(ctx workflow.Context, order Order) (result OrderRe
 		logger.Error("fulfillment failed, unwinding", "orderId", order.OrderID, "error", err)
 
 		// A cancelled Workflow cancels ctx, and with it every Activity started on
-		// it. The undos run on a disconnected context that cancellation never reaches.
+		// it. The undos run on a disconnected context that cancellation never
+		// reaches, with the undos' own retry policy.
 		undoCtx, _ := workflow.NewDisconnectedContext(ctx)
+		undoCtx = workflow.WithActivityOptions(undoCtx, undoActivityOptions)
 
 		// Newest first: walk the slice backwards.
 		for i := len(compensations) - 1; i >= 0; i-- {
-			// One failing undo must not strand the rest. Log it and keep unwinding;
-			// in production this is where you would raise something a human sees.
+			// One failing undo must not strand the rest. Log it and keep unwinding.
+			// The cost: the Workflow still fails with the original error, so a
+			// failed undo shows only here and as a failed Activity in the Event
+			// History. In production this is where you raise something a human sees.
 			if cerr := compensations[i](undoCtx); cerr != nil {
 				logger.Error("compensation failed", "orderId", order.OrderID, "error", cerr)
 			}

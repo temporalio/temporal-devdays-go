@@ -13,11 +13,14 @@ there is nothing to undo.
 
 There is no built-in Saga helper. The compensation stack is a slice of funcs,
 and a `defer` walks it backwards on a context from
-`workflow.NewDisconnectedContext`, so a cancelled order still unwinds.
+`workflow.NewDisconnectedContext`, so a cancelled order still unwinds. The undos
+run with their own retry policy (`undoActivityOptions`): a forward step gives up
+after two attempts so the order can unwind, but an undo that gives up strands
+the money, so it retries with backoff for up to five minutes.
 
 | # | Challenge | Learner does | Check passes when |
 |---|---|---|---|
-| 1 | Unwinding an order that failed halfway | `-fail-dispatch`, then TODO 1 in `workflow.go` | undos run newest first, a clean order runs none, one failing undo does not strand the rest, a cancelled order still unwinds, and the Workflow still fails |
+| 1 | Unwinding an order that failed halfway | `-fail-dispatch`, then TODO 1 in `workflow.go` | undos run newest first, a clean order runs none, one failing undo does not strand the rest, an undo retries past a brief outage, a cancelled order still unwinds, and the Workflow still fails |
 | 2 | Register before you run | `-charge-times-out`, then TODO 2a and 2b in `workflow.go` | a failed reservation still calls its undo, and a charge that lands then fails is refunded |
 | 3 | Make the undo safe to repeat | `-fail-reserve`, then TODO 3a and 3b in `activities.go` | a release with nothing reserved does nothing, and each undo run twice undoes once |
 
@@ -32,8 +35,10 @@ already three separate ideas, so each Check can tell them apart.
 ```
 exercise/          the learner's terminals start here; TODOs 1, 2a, 2b, 3a, 3b undone
   workflow.go      OrderFulfillmentWorkflow: the compensation slice and the unwind
-  activities.go    three forward steps, two undos
+  activities.go    three forward steps, two undos; each undo returns what it did
   ledger.go        what the downstream systems did, printed as [ledger] lines
+  recorded.go      reads an order's Event History: each Activity, the undos that
+                   ran, and any undo owed but never run (the starter prints it)
   order.go         the Order, its result, and the scenario switches
   saga_test.go     one group of TestChallenge<N>_ tests per Challenge
   worker/          go run ./worker
@@ -47,9 +52,14 @@ sandbox/
 The Sandbox Image is the shared one built from [`../_sandbox/`](../_sandbox/)
 (ADR 0004). Task Queue: `fulfillment-tasks`.
 
-The ledger lives in the Worker process, so the Worker terminal is where the
-learner reads what each order did. The Temporal UI shows the same story as
-Activities in the Event History; the assignments ask about both after every run.
+After the Workflow closes, the starter reads its Event History and prints what
+Temporal recorded: every Activity and how it ended (an undo's result says
+whether it undid something or was a no-op), the undos that completed, in order,
+and any undo owed for a step that ran but never undone. So the Client tab shows
+whether compensation worked, whichever Worker ran the steps, and the
+assignments point at the same events in the Temporal UI. Every failure scenario
+ends Failed on purpose; the summary says so. The `[ledger]` lines in the Worker
+terminal tell the same story from the downstream systems' side.
 
 ## Run it locally
 
@@ -66,13 +76,17 @@ go run ./starter -fail-reserve                     # inventory fails before anyt
 go test ./...                                      # starts its own dev server
 ```
 
-Measured on the Solution, from the Worker terminal:
+Measured on the Solution: the Worker's ledger, then the Client's summary line.
 
 ```
 go run ./starter                    reserve -> charge -> dispatch
+                                    Workflow: Completed
 go run ./starter -fail-dispatch     reserve -> charge -> refund -> release
+                                    Undos completed, in order: RefundPaymentIfCharged, ReleaseInventoryIfReserved
 go run ./starter -charge-times-out  reserve -> charge -> refund -> release
-go run ./starter -fail-reserve      [compensate] nothing reserved ..., no-op
+                                    Undos completed, in order: RefundPaymentIfCharged, ReleaseInventoryIfReserved
+go run ./starter -fail-reserve      [compensate] nothing reserved for ORD-..., no-op
+                                    ReleaseInventoryIfReserved  completed nothing reserved, no-op
 ```
 
 ## Prove it
@@ -97,10 +111,17 @@ Every Challenge has the same four tabs, so tab buttons never shift:
 | `tab-2` Client | terminal | `exercise/` |
 | `tab-3` Temporal UI | service | 8233 |
 
-`go run ./worker` runs a child binary named `worker`. Each Challenge's setup stops
-both, by name, so a Worker left on old code never serves the next Challenge.
-Skip splices only that Challenge's TODOs in with `workshop-solve`; a running
-Worker keeps its old code until it is restarted.
+Every Challenge opens fresh terminal tabs, but a Worker started in the last one
+keeps running, detached. A second Worker would join `fulfillment-tasks`, the
+Service would split orders between them, and the ledger lines (and each
+Worker's in-memory ledger, which the undos' guards read) would split with them.
+So each Challenge's `setup-workshop` stops any Worker left running: `go run
+./worker` and its child binary, which runs from a `go-build` temp folder or,
+once cached, from the Go build cache. It sends SIGTERM, waits up to 10 seconds,
+then SIGKILLs, and never fails the Challenge start. Each assignment's run step
+says the last Worker was stopped and to start a fresh one. Skip splices only
+that Challenge's TODOs in with `workshop-solve`; a running Worker keeps its old
+code until it is restarted.
 
 `config.yml` names the image by `:latest` until the first publish, which re-pins
 it by digest. `track.yml` has no `id:` or `checksum:` yet; the first push writes

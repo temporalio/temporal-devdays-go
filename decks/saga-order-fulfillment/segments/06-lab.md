@@ -23,8 +23,11 @@ Walk the room. The failures you will see, in order of frequency:
 1. Editing the code and re-running the order without restarting the Worker.
    `go run ./worker` builds the code once, when it starts; a running Worker
    still has the old code. Ctrl+C and run it again. Always check this first.
-2. Reading the Client terminal instead of the Worker's, and concluding
-   nothing ran.
+2. Reading "Order failed" in the Client after a fix and concluding the fix did
+   not work. Every failure scenario ends Failed on purpose. The answer is the
+   Client's Event History summary below it: "Undos completed" and "Undos owed
+   but never run". Each Challenge's setup stops the last Challenge's Worker,
+   so a learner who did not start a fresh one has no Worker at all.
 3. A forward `range` loop over the slice. The ledger says `release -> refund`
    and the room needs help seeing that it is wrong, because it looks cleaned
    up. The Check catches it.

@@ -47,23 +47,26 @@ func DispatchCourier(ctx context.Context, order Order) (string, error) {
 // ReleaseInventoryIfReserved is the undo for ReserveInventory. Named IfReserved
 // because it has to tolerate being called when nothing is reserved: the
 // reservation may never have landed, and Temporal retries a compensation like
-// any other Activity, so this can run more than once.
-func ReleaseInventoryIfReserved(ctx context.Context, order Order) error {
+// any other Activity, so this can run more than once. What it returns is what
+// it did, and the Event History keeps that as the Activity's result.
+func ReleaseInventoryIfReserved(ctx context.Context, order Order) (string, error) {
 	// TODO 3a start
 	// Guard this with isReserved(order.OrderID). When nothing is reserved, print
-	// "[compensate] nothing reserved for <order ID>, no-op" and return nil.
+	// "[compensate] nothing reserved for <order ID>, no-op" and return
+	// "nothing reserved, no-op", nil.
 	// TODO 3a end
 	record("release:" + order.OrderID)
-	return nil
+	return fmt.Sprintf("released %d x %s", order.Quantity, order.SKU), nil
 }
 
 // RefundPaymentIfCharged is the undo for ChargePayment. Same idempotency
 // requirement, same reasons.
-func RefundPaymentIfCharged(ctx context.Context, order Order) error {
+func RefundPaymentIfCharged(ctx context.Context, order Order) (string, error) {
 	// TODO 3b start
-	// Same guard, with isCharged(order.OrderID). Refunding a charge that never
-	// landed, or refunding it twice, sends money the wrong way.
+	// Same guard, with isCharged(order.OrderID), printing and returning
+	// "nothing charged, no-op". Refunding a charge that never landed, or
+	// refunding it twice, sends money the wrong way.
 	// TODO 3b end
 	record("refund:" + order.OrderID)
-	return nil
+	return fmt.Sprintf("refunded %d cents", order.AmountCents), nil
 }

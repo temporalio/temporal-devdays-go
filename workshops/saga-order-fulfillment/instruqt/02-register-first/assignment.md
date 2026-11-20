@@ -52,8 +52,11 @@ wrote in Challenge 1 cannot see it.
 
 # Watch the money go
 
-Each Challenge opens fresh terminals, so start the Worker again. In the
-[button label="Worker" background="#444CE7"](tab-1) tab:
+When this Challenge started, the Worker from Challenge 1 was stopped. Each
+Challenge opens fresh tabs, and a Worker left running in the background would
+share the Task Queue with the new one: it would take some of the orders, on old
+code, and print their ledger lines where you cannot see them. Start a fresh one
+in the [button label="Worker" background="#444CE7"](tab-1) tab:
 
 ```bash,run
 go run ./worker
@@ -69,15 +72,37 @@ This is a payment gateway that captures the money and then times out. The charge
 landed. The call reported failure anyway.
 
 ```bash,nocopy
+Order failed: payment gateway timed out after capturing 4999 cents
+
+Event History of fulfillment-ORD-XXXXXX:
+     ReserveInventory            completed reserved 1 x widget
+     ChargePayment               failed    payment gateway timed out after capturing 4999 cents
+  <- ReleaseInventoryIfReserved  completed released 1 x widget
+Workflow: Failed
+Undos completed, in order: ReleaseInventoryIfReserved
+Undos owed but never run:
+  MISSING RefundPaymentIfCharged, for ChargePayment
+
+-charge-times-out fails on purpose, so Failed is the expected outcome. What
+matters is the undos: every step that ran needs its undo completed.
+```
+
+**Failed is the expected outcome, before and after your fix.** The gateway
+reported an error, so the order cannot go through. The bug is the `MISSING`
+line. The stock came back. The refund never ran, so the money is still gone.
+
+Open the Workflow in the
+[button label="Temporal UI" background="#444CE7"](tab-3) tab. After
+`ChargePayment`'s **Activity Task Failed**, the only Activity scheduled is
+`ReleaseInventoryIfReserved`. There is no `RefundPaymentIfCharged` event in the
+history at all, because the Workflow never knew it owed one. The Worker tab's
+ledger agrees:
+
+```bash,nocopy
 [ledger] reserve:ORD-XXXXXX
 [ledger] charge:ORD-XXXXXX
 [ledger] release:ORD-XXXXXX
 ```
-
-The stock came back. The refund never ran, so the money is still gone. Open the
-Workflow in the [button label="Temporal UI" background="#444CE7"](tab-3) tab.
-There is no `RefundPaymentIfCharged` event in the history at all, because the
-Workflow never knew it owed one.
 
 # Register before you run (TODO 2a, TODO 2b)
 
@@ -85,7 +110,7 @@ Workflow never knew it owed one.
 [button label="Exercise" background="#444CE7"](tab-0) tab.
 
 <!-- snippet: exercise/workflow.go TODO 2a -->
-Lines 45-54 reserve the stock, then register its undo:
+Lines 61-70 reserve the stock, then register its undo:
 
 ```go
 	// TODO 2a start
@@ -101,7 +126,7 @@ Lines 45-54 reserve the stock, then register its undo:
 ```
 
 <!-- snippet: exercise/workflow.go TODO 2b -->
-Lines 56-64 do the same for the charge:
+Lines 72-80 do the same for the charge:
 
 ```go
 	// TODO 2b start
@@ -165,15 +190,40 @@ go run ./starter -charge-times-out
 ```
 
 ```bash,nocopy
+Order failed: payment gateway timed out after capturing 4999 cents
+
+Event History of fulfillment-ORD-XXXXXX:
+     ReserveInventory            completed reserved 1 x widget
+     ChargePayment               failed    payment gateway timed out after capturing 4999 cents
+  <- RefundPaymentIfCharged      completed refunded 4999 cents
+  <- ReleaseInventoryIfReserved  completed released 1 x widget
+Workflow: Failed
+Undos completed, in order: RefundPaymentIfCharged, ReleaseInventoryIfReserved
+Undos owed but never run:  none
+
+-charge-times-out fails on purpose, so Failed is the expected outcome. What
+matters is the undos: every step that ran needs its undo completed.
+```
+
+Still **Order failed**, still **Failed**, and that is still correct. The
+`MISSING` line is gone: `RefundPaymentIfCharged` ran, before the release. In the
+[button label="Temporal UI" background="#444CE7"](tab-3) tab, after
+`ChargePayment`'s **Activity Task Failed**, the history now carries
+**Activity Task Scheduled** and **Activity Task Completed** for
+`RefundPaymentIfCharged`, and its result reads `refunded 4999 cents`.
+
+The Worker's ledger shows the same four lines as a failed dispatch:
+
+```bash,nocopy
 [ledger] reserve:ORD-XXXXXX
 [ledger] charge:ORD-XXXXXX
 [ledger] refund:ORD-XXXXXX
 [ledger] release:ORD-XXXXXX
 ```
 
-The same four lines as a failed dispatch. `charge` is there even though
-`ChargePayment` failed, because the money moved first. `refund` is there because
-the undo was on the stack before the gateway ever saw the request.
+`charge` is there even though `ChargePayment` failed, because the money moved
+first. `refund` is there because the undo was on the stack before the gateway
+ever saw the request.
 
 # Checkpoint
 

@@ -94,8 +94,8 @@ func TestChallenge1_CleanOrderRunsNoUndo(t *testing.T) {
 }
 
 func TestChallenge1_OneFailingUndoDoesNotStrandTheRest(t *testing.T) {
-	failingRefund := func(ctx context.Context, order Order) error {
-		return temporal.NewNonRetryableApplicationError("refund service down", "RefundFailed", nil)
+	failingRefund := func(ctx context.Context, order Order) (string, error) {
+		return "", temporal.NewNonRetryableApplicationError("refund service down", "RefundFailed", nil)
 	}
 	tq := startWorker(t, map[string]any{"RefundPaymentIfCharged": failingRefund})
 	order := newOrder(t)
@@ -104,6 +104,25 @@ func TestChallenge1_OneFailingUndoDoesNotStrandTheRest(t *testing.T) {
 	_, _ = runOrder(t, tq, order)
 	if got := ledgerFor(order.OrderID); !slices.Contains(got, "release") {
 		t.Fatalf("workflow.go, OrderFulfillmentWorkflow, TODO 1: when the refund failed, the stock was never released (ledger: %s). Log a failed compensation and keep unwinding; do not return from the loop.", strings.Join(got, ", "))
+	}
+}
+
+func TestChallenge1_UndoRetriesPastAnOutage(t *testing.T) {
+	// The refund service is down for two attempts, then comes back. A forward
+	// step gives up after two attempts; an undo must not.
+	flakyRefund := func(ctx context.Context, order Order) (string, error) {
+		if activity.GetInfo(ctx).Attempt <= 2 {
+			return "", errors.New("refund service briefly unavailable")
+		}
+		return RefundPaymentIfCharged(ctx, order)
+	}
+	tq := startWorker(t, map[string]any{"RefundPaymentIfCharged": flakyRefund})
+	order := newOrder(t)
+	order.FailDispatch = true
+
+	_, _ = runOrder(t, tq, order)
+	if got := ledgerFor(order.OrderID); !slices.Contains(got, "refund") {
+		t.Fatalf("workflow.go, OrderFulfillmentWorkflow, TODO 1: the refund service failed twice and then recovered, but the refund never ran (ledger: %s). Give undoCtx the undos' own retry policy: undoCtx = workflow.WithActivityOptions(undoCtx, undoActivityOptions).", strings.Join(got, ", "))
 	}
 }
 
@@ -228,6 +247,67 @@ func undoTwiceWorkflow(ctx workflow.Context, order Order) error {
 	return nil
 }
 
+// ---- The starter's summary (recorded.go), for every Challenge ------------------
+
+func TestRecord_ReadsWhatTheEventHistoryHolds(t *testing.T) {
+	tq := startWorker(t, nil)
+	order := newOrder(t)
+	order.ChargeFailsAfterEffect = true
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	run, err := testClient.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+		ID: "refund-only-" + order.OrderID, TaskQueue: tq,
+	}, refundOnlyWorkflow, order)
+	if err != nil {
+		t.Fatalf("could not start the Workflow: %v", err)
+	}
+	_ = run.Get(ctx, nil)
+
+	rec, err := ReadRecord(ctx, testClient, run.GetID(), run.GetRunID())
+	if err != nil {
+		t.Fatalf("recorded.go, ReadRecord: could not read the Event History: %v", err)
+	}
+	var got []string
+	for _, s := range rec.Steps {
+		got = append(got, s.Activity+" "+s.Outcome+": "+s.Detail)
+	}
+	want := []string{
+		"ReserveInventory completed: reserved 1 x widget",
+		"ChargePayment failed: payment gateway timed out after capturing 4999 cents",
+		"RefundPaymentIfCharged completed: refunded 4999 cents",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("recorded.go, ReadRecord: steps\n  %s\nwant\n  %s", strings.Join(got, "\n  "), strings.Join(want, "\n  "))
+	}
+	if rec.Status != "Failed" {
+		t.Fatalf("recorded.go, ReadRecord: status %q, want Failed", rec.Status)
+	}
+	if !slices.Equal(rec.UndosRan, []string{"RefundPaymentIfCharged"}) {
+		t.Fatalf("recorded.go, ReadRecord: undos ran %v, want [RefundPaymentIfCharged]", rec.UndosRan)
+	}
+	if !slices.Equal(rec.UndosOwed, []string{"ReleaseInventoryIfReserved, for ReserveInventory"}) {
+		t.Fatalf("recorded.go, ReadRecord: undos owed %v, want the release, for ReserveInventory", rec.UndosOwed)
+	}
+}
+
+// refundOnlyWorkflow reserves, charges (which lands and then fails), refunds, and
+// never releases, so its Event History holds one undo that ran and one owed.
+func refundOnlyWorkflow(ctx workflow.Context, order Order) error {
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 10 * time.Second,
+		RetryPolicy:         &temporal.RetryPolicy{MaximumAttempts: 1},
+	})
+	if err := workflow.ExecuteActivity(ctx, ReserveInventory, order).Get(ctx, nil); err != nil {
+		return err
+	}
+	chargeErr := workflow.ExecuteActivity(ctx, ChargePayment, order).Get(ctx, nil)
+	if err := workflow.ExecuteActivity(ctx, RefundPaymentIfCharged, order).Get(ctx, nil); err != nil {
+		return err
+	}
+	return chargeErr
+}
+
 // ---- helpers ------------------------------------------------------------------
 
 // startWorker runs a Worker on a Task Queue of its own, with the real Workflow
@@ -238,6 +318,7 @@ func startWorker(t *testing.T, overrides map[string]any) string {
 	w := worker.New(testClient, tq, worker.Options{})
 	w.RegisterWorkflow(OrderFulfillmentWorkflow)
 	w.RegisterWorkflow(undoTwiceWorkflow)
+	w.RegisterWorkflow(refundOnlyWorkflow)
 	activities := map[string]any{
 		"ReserveInventory":           ReserveInventory,
 		"ChargePayment":              ChargePayment,

@@ -137,13 +137,13 @@ proseMax: 32
 ::code::
 
 ```go {2-5|6|all}
-func ReleaseInventoryIfReserved(ctx context.Context, order Order) error {
+func ReleaseInventoryIfReserved(ctx context.Context, order Order) (string, error) {
 	if !isReserved(order.OrderID) {
 		fmt.Printf("[compensate] nothing reserved for %s, no-op\n", order.OrderID)
-		return nil
+		return "nothing reserved, no-op", nil
 	}
 	record("release:" + order.OrderID)
-	return nil
+	return fmt.Sprintf("released %d x %s", order.Quantity, order.SKU), nil
 }
 ```
 
@@ -153,21 +153,23 @@ The `If` in the name is a promise the body has to keep. Same shape in
 `RefundPaymentIfCharged`, guarded by `isCharged`.
 
 <!--
-Source: workshops/saga-order-fulfillment/solution/activities.go, lines 51-60,
+Source: workshops/saga-order-fulfillment/solution/activities.go, lines 52-61,
 verbatim with the TODO markers trimmed. TODO 3a and 3b in the exercise are
 exactly this guard, missing.
 
 - **Build 1 -** the guard. Nothing reserved, nothing to release, and the
-  Activity still completes successfully.
+  Activity still completes successfully. Its result says what it did, so the
+  Event History records "nothing reserved, no-op" rather than just "completed".
 - **Build 2 -** the effect, reached only when there is something to undo.
 
 Two reasons an undo runs when there is nothing to undo, and both are ordinary:
 1. **The effect never landed.** You registered the compensation before the step,
    so if the step fails cleanly the undo is on the stack anyway. That is by
    design — it is the price of anti-pattern 1's fix.
-2. **Temporal retried it.** Compensations are Activities. They get the same
-   retry policy as everything else. A refund whose response is lost gets called
-   again, and a second refund sends money the wrong way.
+2. **Temporal retried it.** Compensations are Activities, and Temporal retries
+   them; this Saga gives them a longer retry policy than the forward steps. A
+   refund whose response is lost gets called again, and a second refund sends
+   money the wrong way.
 
 So the naming convention is not decoration. `ReleaseInventoryIfReserved`, not
 `ReleaseInventory`. The name states the precondition, and a reviewer who sees
