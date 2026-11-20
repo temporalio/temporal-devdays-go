@@ -14,6 +14,20 @@ import (
 // on the way out.
 type compensation func(ctx workflow.Context) error
 
+// undoActivityOptions are for the undos, not the forward steps. A forward step
+// that keeps failing should give up quickly so the order can unwind. An undo
+// that gives up strands the stock or the money, so it keeps retrying, with
+// backoff, for up to five minutes.
+var undoActivityOptions = workflow.ActivityOptions{
+	StartToCloseTimeout:    10 * time.Second,
+	ScheduleToCloseTimeout: 5 * time.Minute,
+	RetryPolicy: &temporal.RetryPolicy{
+		InitialInterval:    500 * time.Millisecond,
+		BackoffCoefficient: 2,
+		MaximumInterval:    10 * time.Second,
+	},
+}
+
 // OrderFulfillmentWorkflow reserves the stock, charges the card and books the
 // courier. When any step fails, it undoes the steps that ran, newest first, and
 // still fails: compensating is not succeeding.
@@ -34,6 +48,8 @@ func OrderFulfillmentWorkflow(ctx workflow.Context, order Order) (result OrderRe
 	//
 	//   - makes undoCtx, _ := workflow.NewDisconnectedContext(ctx). A cancelled
 	//     Workflow cancels ctx, and an undo started on it would never run.
+	//   - gives undoCtx the undos' own retry policy:
+	//     undoCtx = workflow.WithActivityOptions(undoCtx, undoActivityOptions)
 	//   - walks compensations BACKWARDS, from len(compensations)-1 down to 0, and
 	//     calls each one with undoCtx. The newest undo goes first.
 	//   - logs a failed undo with workflow.GetLogger(ctx) and keeps going, so one

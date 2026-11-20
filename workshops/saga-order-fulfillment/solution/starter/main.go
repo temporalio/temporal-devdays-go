@@ -1,5 +1,6 @@
-// ABOUTME: Runs one order. Watch the WORKER terminal for the ledger lines. That
-// is where you see whether the undos ran, and in which order.
+// ABOUTME: Runs one order, then prints what Temporal recorded for it: every
+// Activity in its Event History, which undos ran and in which order, and any undo
+// the order still owes. The Worker terminal shows the same story as [ledger] lines.
 //
 //	go run ./starter                     a clean order that succeeds
 //	go run ./starter -fail-reserve       inventory fails before anything lands
@@ -56,8 +57,6 @@ func main() {
 	defer c.Close()
 
 	fmt.Printf("\nFulfilling %s...\n", order.OrderID)
-	fmt.Println("Watch the Worker terminal for [ledger] lines.")
-	fmt.Println()
 
 	ctx := context.Background()
 	run, err := c.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
@@ -74,13 +73,35 @@ func main() {
 		// The useful message is at the BOTTOM of the error chain: the Workflow
 		// failure wraps the Activity failure, which wraps the Activity's own error.
 		fmt.Printf("Order failed: %s\n", rootCause(err))
-		fmt.Println()
-		fmt.Println("Now read the ledger in the Worker terminal. A correctly")
-		fmt.Println("compensated order ends with the undos present, newest first:")
-		fmt.Println("  refund before release.")
-		return
+	} else {
+		fmt.Printf("Order completed. Tracking number %s\n", result.TrackingNumber)
 	}
-	fmt.Printf("Order completed. Tracking number %s\n", result.TrackingNumber)
+
+	// The Workflow has closed. Read what Temporal recorded, not what any process
+	// printed: the Event History is the same whichever Worker ran the steps.
+	record, err := saga.ReadRecord(ctx, c, run.GetID(), run.GetRunID())
+	if err != nil {
+		log.Fatalln("Unable to read the Event History:", err)
+	}
+	fmt.Println()
+	record.Print(os.Stdout)
+	if scenario := failureScenario(*failReserve, *failDispatch, *chargeTimesOut); scenario != "" {
+		fmt.Printf("\n%s fails on purpose, so Failed is the expected outcome. What\n", scenario)
+		fmt.Println("matters is the undos: every step that ran needs its undo completed.")
+	}
+}
+
+// failureScenario names the flag that makes this order fail, or "" for a clean order.
+func failureScenario(failReserve, failDispatch, chargeTimesOut bool) string {
+	switch {
+	case failReserve:
+		return "-fail-reserve"
+	case failDispatch:
+		return "-fail-dispatch"
+	case chargeTimesOut:
+		return "-charge-times-out"
+	}
+	return ""
 }
 
 // rootCause walks to the deepest error, where the Activity's real message lives.

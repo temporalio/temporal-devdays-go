@@ -54,8 +54,11 @@ exist. A refund with nothing charged sends money the wrong way.
 
 # Watch the undo overreach
 
-Start the Worker again. In the
-[button label="Worker" background="#444CE7"](tab-1) tab:
+When this Challenge started, the Worker from Challenge 2 was stopped. Each
+Challenge opens fresh tabs, and a Worker left running in the background would
+share the Task Queue with the new one: it would take some of the orders, on old
+code, and print their ledger lines where you cannot see them. Start a fresh one
+in the [button label="Worker" background="#444CE7"](tab-1) tab:
 
 ```bash,run
 go run ./worker
@@ -71,10 +74,32 @@ The inventory service is down and nothing was reserved. The undo was registered
 first, so it runs anyway:
 
 ```bash,nocopy
+Order failed: inventory service unavailable
+
+Event History of fulfillment-ORD-XXXXXX:
+     ReserveInventory            failed    inventory service unavailable
+  <- ReleaseInventoryIfReserved  completed released 1 x widget
+Workflow: Failed
+Undos completed, in order: ReleaseInventoryIfReserved
+Undos owed but never run:  none
+
+-fail-reserve fails on purpose, so Failed is the expected outcome. What
+matters is the undos: every step that ran needs its undo completed.
+```
+
+**Failed is the expected outcome, before and after your fix.** Nothing is owed,
+so the unwind looks complete. Read the undo's result instead: `released 1 x
+widget`, for a reservation that never happened. The Worker's ledger has one
+line, and no `reserve` before it:
+
+```bash,nocopy
 [ledger] release:ORD-XXXXXX
 ```
 
-That releases stock nobody ever held.
+That releases stock nobody ever held. In the
+[button label="Temporal UI" background="#444CE7"](tab-3) tab, the
+**Activity Task Completed** event for `ReleaseInventoryIfReserved` carries the
+same result.
 
 # Guard each undo (TODO 3a, TODO 3b)
 
@@ -82,24 +107,26 @@ That releases stock nobody ever held.
 [button label="Exercise" background="#444CE7"](tab-0) tab.
 
 <!-- snippet: exercise/activities.go TODO 3a before=1 -->
-Lines 51-55 are the top of `ReleaseInventoryIfReserved`:
+Lines 52-57 are the top of `ReleaseInventoryIfReserved`:
 
 ```go
-func ReleaseInventoryIfReserved(ctx context.Context, order Order) error {
+func ReleaseInventoryIfReserved(ctx context.Context, order Order) (string, error) {
 	// TODO 3a start
 	// Guard this with isReserved(order.OrderID). When nothing is reserved, print
-	// "[compensate] nothing reserved for <order ID>, no-op" and return nil.
+	// "[compensate] nothing reserved for <order ID>, no-op" and return
+	// "nothing reserved, no-op", nil.
 	// TODO 3a end
 ```
 
 <!-- snippet: exercise/activities.go TODO 3b before=1 -->
-Lines 62-66 are the top of `RefundPaymentIfCharged`:
+Lines 64-69 are the top of `RefundPaymentIfCharged`:
 
 ```go
-func RefundPaymentIfCharged(ctx context.Context, order Order) error {
+func RefundPaymentIfCharged(ctx context.Context, order Order) (string, error) {
 	// TODO 3b start
-	// Same guard, with isCharged(order.OrderID). Refunding a charge that never
-	// landed, or refunding it twice, sends money the wrong way.
+	// Same guard, with isCharged(order.OrderID), printing and returning
+	// "nothing charged, no-op". Refunding a charge that never landed, or
+	// refunding it twice, sends money the wrong way.
 	// TODO 3b end
 ```
 
@@ -108,8 +135,9 @@ two ordinary reasons an undo runs with nothing to undo:
 
 1. **The effect never landed.** You registered the undo before the step, so a
    step that fails cleanly leaves its undo on the stack anyway.
-2. **Temporal retried it.** Compensations are Activities, with the same retry
-   policy as everything else. A refund whose reply is lost is called again.
+2. **Temporal retried it.** Compensations are Activities, and Temporal retries
+   them: in Challenge 1 you gave them a retry policy that keeps trying for up to
+   five minutes. A refund whose reply is lost is called again.
 
 `isReserved` and `isCharged` in `exercise/ledger.go` stand in for the check a
 real system makes: reading the reservation's status, or the gateway's own
@@ -117,10 +145,15 @@ idempotency key.
 
 **Do.**
 
-- [ ] TODO 3a: in `ReleaseInventoryIfReserved`, return early when
-  `isReserved(order.OrderID)` is false.
-- [ ] TODO 3b: in `RefundPaymentIfCharged`, return early when
-  `isCharged(order.OrderID)` is false.
+- [ ] TODO 3a: in `ReleaseInventoryIfReserved`, return
+  `"nothing reserved, no-op", nil` early when `isReserved(order.OrderID)` is
+  false.
+- [ ] TODO 3b: in `RefundPaymentIfCharged`, return
+  `"nothing charged, no-op", nil` early when `isCharged(order.OrderID)` is
+  false.
+
+What an undo returns is its result in the Event History, so the history records
+what the undo did, not only that it ran.
 
 <details>
 <summary>Show solution</summary>
@@ -128,11 +161,12 @@ idempotency key.
 ```go
 	if !isReserved(order.OrderID) {
 		fmt.Printf("[compensate] nothing reserved for %s, no-op\n", order.OrderID)
-		return nil
+		return "nothing reserved, no-op", nil
 	}
 ```
 
-TODO 3b is the same guard with `isCharged`, printing `nothing charged`.
+TODO 3b is the same guard with `isCharged`, printing and returning
+`nothing charged, no-op`.
 
 </details>
 
@@ -151,7 +185,23 @@ In the [button label="Client" background="#444CE7"](tab-2) tab:
 go run ./starter -fail-reserve
 ```
 
-The Worker prints a no-op instead of a ledger entry:
+```bash,nocopy
+Order failed: inventory service unavailable
+
+Event History of fulfillment-ORD-XXXXXX:
+     ReserveInventory            failed    inventory service unavailable
+  <- ReleaseInventoryIfReserved  completed nothing reserved, no-op
+Workflow: Failed
+Undos completed, in order: ReleaseInventoryIfReserved
+Undos owed but never run:  none
+
+-fail-reserve fails on purpose, so Failed is the expected outcome. What
+matters is the undos: every step that ran needs its undo completed.
+```
+
+The order still fails, as it should. The undo's result now reads
+`nothing reserved, no-op`, and the Worker prints a no-op instead of a ledger
+entry:
 
 ```bash,nocopy
 [compensate] nothing reserved for ORD-XXXXXX, no-op
@@ -159,19 +209,23 @@ The Worker prints a no-op instead of a ledger entry:
 
 In the [button label="Temporal UI" background="#444CE7"](tab-3) tab,
 `ReleaseInventoryIfReserved` is still in the history and still shows
-**Activity Task Completed**. The guard did not stop the call. It changed what
-the call did, which is what idempotency means here.
+**Activity Task Completed**, now with the result `nothing reserved, no-op`.
+The guard did not stop the call. It changed what the call did, which is what
+idempotency means here.
 
 # What you know now
 
 - A distributed transaction has no rollback. You write the undo yourself.
 - Compensations run newest first, or you undo into an inconsistent state.
-- They run on a disconnected context, so a cancelled order still unwinds.
+- They run on a disconnected context, so a cancelled order still unwinds, and
+  with a retry policy of their own, because an undo that gives up strands money.
 - Register the undo before the step, because a step can land its effect and
   still report failure.
 - So every undo must tolerate running when there is nothing to undo, and running
   more than once.
 - One failing undo must not strand the rest, and the Workflow still fails.
+- A failed order is not a failed Saga. Read the Event History: every step that
+  ran needs its undo completed, and the undo's result says what it did.
 
 # Checkpoint
 
