@@ -55,12 +55,13 @@ func OrderFulfillmentWorkflow(ctx workflow.Context, order Order) (result OrderRe
 ::default::
 
 Five Activities: three forward steps and two undos. **The undos are Activities like any
-other** — they get the same timeout and the same retry policy, which is exactly why they
-have to be idempotent.
+other**: Temporal retries them, which is exactly why they have to be idempotent. These
+options are for the forward steps; the undos get their own on the unwind.
 
 <!--
-Source: workshops/saga-order-fulfillment/solution/workflow.go, lines 15-30.
-Verbatim, doc comments trimmed.
+Source: workshops/saga-order-fulfillment/solution/workflow.go, lines 15 and
+34-44. Verbatim, doc comments and undoActivityOptions (lines 17-29, the unwind
+slide) trimmed.
 
 - **Build 1 -** `type compensation func(ctx workflow.Context) error` is the
   entire abstraction. A func that takes a Workflow context and returns an error.
@@ -69,11 +70,12 @@ Verbatim, doc comments trimmed.
 - **Build 2 -** the signature. `err` is a **named** result, and that is
   load-bearing: a deferred func can read it, so the unwind can see whether the
   Workflow is on its way out with a failure.
-- **Build 3 -** one set of Activity options for every Activity this Workflow
-  runs, undos included. There is no separate mechanism for compensations; the
-  SDK does not know which of the five is an undo. `MaximumAttempts: 2` is a
-  teaching setting, not a production one — it keeps the lab's failure paths
-  fast. Say so, or someone will copy it.
+- **Build 3 -** the Activity options for the forward steps. There is no
+  separate mechanism for compensations; the SDK does not know which of the five
+  is an undo. `MaximumAttempts: 2` keeps the lab's failure paths fast: a forward
+  step that keeps failing should give up so the order can unwind. An undo that
+  gives up strands the money, so the unwind hands the undos a context with
+  their own, longer retry policy.
 - **Build 4 -** a plain nil slice. `append` puts the newest undo last.
 
 The consequence of build 3 is the one to plant now, because it becomes
@@ -146,7 +148,7 @@ proseMax: 34
 
 ::code::
 
-```go {1-4|5-6|8|10-15|16|all}
+```go {1-4|5-6|8-9|11-16|17|all}
 	defer func() {
 		if err == nil {
 			return
@@ -155,6 +157,7 @@ proseMax: 34
 		logger.Error("fulfillment failed, unwinding", "orderId", order.OrderID, "error", err)
 
 		undoCtx, _ := workflow.NewDisconnectedContext(ctx)
+		undoCtx = workflow.WithActivityOptions(undoCtx, undoActivityOptions)
 
 		for i := len(compensations) - 1; i >= 0; i-- {
 			// One failing undo must not strand the rest.
@@ -171,7 +174,7 @@ Undos run on a **disconnected** context, so a cancelled order still unwinds. Eac
 is logged and the loop **keeps going**. `err` is left alone: compensating is not succeeding.
 
 <!--
-Source: workshops/saga-order-fulfillment/solution/workflow.go, lines 33-54.
+Source: workshops/saga-order-fulfillment/solution/workflow.go, lines 47-72.
 Verbatim, comments trimmed.
 
 - **Build 1 -** the defer, and its guard. A clean order returns with `err` nil
@@ -185,7 +188,10 @@ Verbatim, comments trimmed.
   a cancelled order — the most ordinary way an order stops — strands both the
   reservation and the charge. `workflow.NewDisconnectedContext` gives a context
   the cancellation never reaches. The lab's Check cancels an order mid-dispatch
-  to prove it.
+  to prove it. The second line gives the undos their own retry policy,
+  `undoActivityOptions`: backoff from 500 ms to 10 s, for up to five minutes,
+  where a forward step gets two attempts. The Check takes the refund service
+  down for two attempts and expects the refund to land on the third.
 - **Build 4 -** the loop, backwards, and the per-undo error check, which is the
   part people cut. `return` on the first failure instead and the first failing
   undo abandons every undo after it — the refund fails, and the stock stays
@@ -197,7 +203,7 @@ Verbatim, comments trimmed.
   That is strictly worse than the bug you started with.
 
 The honest gap, and say it before someone finds it: a compensation that fails
-after its retries are exhausted is logged and stepped over. Money is now
+after its retries are exhausted (five minutes here) is logged and stepped over. Money is now
 stranded and only a log line knows. In production this is where you raise
 something a human sees — a Signal to a remediation Workflow, a Search Attribute
 you alert on, a row in a queue. The comment in the lab code says exactly this.

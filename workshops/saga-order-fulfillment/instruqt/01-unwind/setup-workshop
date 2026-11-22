@@ -1,14 +1,38 @@
 #!/bin/bash
-# ABOUTME: Setup for Challenge 1. Stops any Worker left from an earlier Challenge,
-# so the Task Queue is served only by the Worker the learner starts now, on the
-# code as it is now.
+# ABOUTME: Setup for Challenge 1. Stops any Worker left running from an earlier
+# Challenge, so the Task Queue is served only by the Worker the learner starts in
+# this Challenge's fresh Worker tab, on the code as it is now.
 #
-# `go run ./worker` builds a child binary named `worker` and runs it. Stopping
-# `go run` alone leaves that child polling, so stop the child by name too. One
-# pkill per pattern: `pkill -f "a|b"` silently matches nothing on macOS.
+# Instruqt opens new terminal tabs for every Challenge, but a Worker started in
+# the last one keeps running, detached from any tab. A second Worker would join
+# fulfillment-tasks, the Service would split the order's Activities between
+# them, and half the [ledger] lines would print where nobody can see them. Worse,
+# each Worker keeps its own ledger, so an undo on one Worker cannot see the
+# step that landed on the other.
+#
+# `go run ./worker` builds a child binary named worker and runs it, from a temp
+# folder (.../go-build<N>/b001/exe/worker) or, once it is cached, from the build
+# cache (.../go-build/<xx>/<hash>-d/worker). Stopping `go run` alone leaves that
+# child polling, so stop both. One pattern
+# per pkill: `pkill -f "a|b"` silently matches nothing on macOS. Idempotent, and
+# never fails the Challenge start: with no Worker running it does nothing.
 set -uo pipefail
 
-pkill -f "go run ./worker" 2>/dev/null || true
-pkill -x worker 2>/dev/null || true
+PATTERNS=("go run ./worker" "go-build.*/worker$")
+
+running() {
+    for p in "${PATTERNS[@]}"; do pgrep -f "$p" >/dev/null 2>&1 && return 0; done
+    return 1
+}
+
+if running; then
+    # SIGTERM is a Shutdown: the Worker tells the Service it is leaving.
+    for p in "${PATTERNS[@]}"; do pkill -TERM -f "$p" 2>/dev/null || true; done
+    for _ in $(seq 1 50); do running || break; sleep 0.2; done
+    # Anything still there after 10 seconds is stuck. Kill it.
+    for p in "${PATTERNS[@]}"; do pkill -KILL -f "$p" 2>/dev/null || true; done
+    echo "Stopped the Worker left from the last Challenge."
+fi
 
 echo "Saga Challenge 1 ready."
+exit 0

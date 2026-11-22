@@ -85,15 +85,38 @@ Now place an order that fails at the courier, from the
 go run ./starter -fail-dispatch
 ```
 
-Among the Worker's log lines are two ledger entries, and then nothing:
+The Client waits for the Workflow to close, then reads its Event History and
+prints what Temporal recorded:
+
+```bash,nocopy
+Order failed: no courier available for this route
+
+Event History of fulfillment-ORD-XXXXXX:
+     ReserveInventory            completed reserved 1 x widget
+     ChargePayment               completed charged 4999 cents
+     DispatchCourier             failed    no courier available for this route
+Workflow: Failed
+Undos completed, in order: none
+Undos owed but never run:
+  MISSING ReleaseInventoryIfReserved, for ReserveInventory
+  MISSING RefundPaymentIfCharged, for ChargePayment
+
+-fail-dispatch fails on purpose, so Failed is the expected outcome. What
+matters is the undos: every step that ran needs its undo completed.
+```
+
+**Failed is the expected outcome here, before and after your fix.** There is
+no courier for this order, so it cannot go through. What is wrong is the end of
+the summary: two steps ran, and nothing undid them. Stock held, card charged,
+nothing undone. The customer paid for an order that will never ship.
+
+The Worker tab tells the same story from the downstream systems' side: two
+ledger entries among its log lines, and then nothing.
 
 ```bash,nocopy
 [ledger] reserve:ORD-XXXXXX
 [ledger] charge:ORD-XXXXXX
 ```
-
-Stock held, card charged, courier failed, nothing undone. The customer paid for
-an order that will never ship.
 
 The ledger is something this Workshop made up. The Event History is real, and
 it is what you get in production. Open the Workflow in the
@@ -118,7 +141,7 @@ there and are not?
 (`Cmd+P` on a Mac), type the file name, then `Ctrl+G` to jump to a line.
 
 <!-- snippet: exercise/workflow.go TODO 1 before=3 -->
-Lines 29-43 of `OrderFulfillmentWorkflow` hold the compensations, and the empty
+Lines 43-59 of `OrderFulfillmentWorkflow` hold the compensations, and the empty
 space where they should run:
 
 ```go
@@ -130,6 +153,8 @@ space where they should run:
 	//
 	//   - makes undoCtx, _ := workflow.NewDisconnectedContext(ctx). A cancelled
 	//     Workflow cancels ctx, and an undo started on it would never run.
+	//   - gives undoCtx the undos' own retry policy:
+	//     undoCtx = workflow.WithActivityOptions(undoCtx, undoActivityOptions)
 	//   - walks compensations BACKWARDS, from len(compensations)-1 down to 0, and
 	//     calls each one with undoCtx. The newest undo goes first.
 	//   - logs a failed undo with workflow.GetLogger(ctx) and keeps going, so one
@@ -143,7 +168,7 @@ space where they should run:
 yourself: `compensations` is a slice of funcs, and each step below appends its
 undo to it. Nothing runs them yet.
 
-Three things decide how they run:
+Four things decide how they run:
 
 - **When.** A `defer` runs on every way out of the function. The Workflow
   returns a named `err`, so the deferred func can see whether the order failed.
@@ -153,10 +178,23 @@ Three things decide how they run:
   and an Activity started on a cancelled context never runs. A context from
   `workflow.NewDisconnectedContext` is not cancelled with it, so the undos still
   run.
+- **How hard to try.** The forward steps give up after two attempts, so a
+  failing order unwinds quickly. An undo that gives up leaves the stock held or
+  the money gone, so `undoActivityOptions`, near the top of the file, retries
+  an undo with backoff for up to five minutes. Hand those options to the undos
+  with `workflow.WithActivityOptions`.
+
+If an undo still fails, log it and go on to the next one: a failed refund is no
+reason to keep the stock held as well. The cost of going on is that the
+Workflow still fails with the courier's error, so the failed undo is recorded
+only in the log and as an Activity Task Failed in the Event History. In
+production, that is where you raise something a human sees.
 
 **Do.** Between the TODO 1 markers, add a `defer` that, when `err` is not nil:
 
 - [ ] makes a disconnected context, `undoCtx`
+- [ ] gives it the undos' retry policy:
+  `undoCtx = workflow.WithActivityOptions(undoCtx, undoActivityOptions)`
 - [ ] calls each compensation with `undoCtx`, from the last one to the first
 - [ ] logs a compensation that fails, and keeps going
 
@@ -188,13 +226,17 @@ for i := len(items) - 1; i >= 0; i-- {
 		logger.Error("fulfillment failed, unwinding", "orderId", order.OrderID, "error", err)
 
 		// A cancelled Workflow cancels ctx, and with it every Activity started on
-		// it. The undos run on a disconnected context that cancellation never reaches.
+		// it. The undos run on a disconnected context that cancellation never
+		// reaches, with the undos' own retry policy.
 		undoCtx, _ := workflow.NewDisconnectedContext(ctx)
+		undoCtx = workflow.WithActivityOptions(undoCtx, undoActivityOptions)
 
 		// Newest first: walk the slice backwards.
 		for i := len(compensations) - 1; i >= 0; i-- {
-			// One failing undo must not strand the rest. Log it and keep unwinding;
-			// in production this is where you would raise something a human sees.
+			// One failing undo must not strand the rest. Log it and keep unwinding.
+			// The cost: the Workflow still fails with the original error, so a
+			// failed undo shows only here and as a failed Activity in the Event
+			// History. In production this is where you raise something a human sees.
 			if cerr := compensations[i](undoCtx); cerr != nil {
 				logger.Error("compensation failed", "orderId", order.OrderID, "error", cerr)
 			}
@@ -223,7 +265,39 @@ order again:
 go run ./starter -fail-dispatch
 ```
 
-Four ledger lines now:
+The Client's summary now ends with both undos, and nothing owed:
+
+```bash,nocopy
+Order failed: no courier available for this route
+
+Event History of fulfillment-ORD-XXXXXX:
+     ReserveInventory            completed reserved 1 x widget
+     ChargePayment               completed charged 4999 cents
+     DispatchCourier             failed    no courier available for this route
+  <- RefundPaymentIfCharged      completed refunded 4999 cents
+  <- ReleaseInventoryIfReserved  completed released 1 x widget
+Workflow: Failed
+Undos completed, in order: RefundPaymentIfCharged, ReleaseInventoryIfReserved
+Undos owed but never run:  none
+
+-fail-dispatch fails on purpose, so Failed is the expected outcome. What
+matters is the undos: every step that ran needs its undo completed.
+```
+
+The order still says **Order failed**, and the Workflow still ends **Failed**.
+That is correct: compensating is not succeeding, and the caller has to learn
+the order did not go through. The difference is the `<-` lines. The refund ran
+before the stock was released, newest undo first.
+
+Open the new Workflow in the
+[button label="Temporal UI" background="#444CE7"](tab-3) tab. After
+`DispatchCourier`'s **Activity Task Failed**, the history now carries
+**Activity Task Scheduled** and **Activity Task Completed** for
+`RefundPaymentIfCharged`, then the same pair for `ReleaseInventoryIfReserved`,
+and only then **Workflow Execution Failed**. That is the proof the unwind ran,
+and in which order. The Client's summary is read from those events.
+
+The Worker tab shows four ledger lines for the order:
 
 ```bash,nocopy
 [ledger] reserve:ORD-XXXXXX
@@ -232,19 +306,12 @@ Four ledger lines now:
 [ledger] release:ORD-XXXXXX
 ```
 
-The refund runs before the stock is released, newest undo first.
-
-Open the new Workflow in the
-[button label="Temporal UI" background="#444CE7"](tab-3) tab. The history now
-carries `RefundPaymentIfCharged` and then `ReleaseInventoryIfReserved` after the
-failure, so the order they ran in is recorded, not just logged. The Workflow
-still ends **Failed**, which is correct.
-
 # Checkpoint
 
 Click **Check**. It runs the tests for this Challenge against their own dev
 server: the undos run newest first, a clean order runs none, one failing undo
-does not stop the rest, and a cancelled order still unwinds. If one fails, the
+does not stop the rest, an undo retries past a brief outage, and a cancelled
+order still unwinds. If one fails, the
 message names the file, the function and the TODO.
 
 ---
